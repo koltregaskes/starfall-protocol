@@ -17,14 +17,14 @@
         <div class="hero__copy">
           <p class="eyebrow">Third-person science-fiction action game</p>
           <p class="brand">Starfall Protocol</p>
-          <h1>Lead a black-ops recovery team into collapsing orbital worlds.</h1>
+          <h1>Walk the first orbital dock and feel the world before the combat arrives.</h1>
           <p class="lede">
-            A cinematic action project about boarding ruined stations, surviving synthetic warzones,
-            and choosing which fragments of a fallen interstellar network deserve to live on.
+            This is now an environment slice rather than a pure landing page: a small recon bay you can move around,
+            scan, and use to test the mood of the world.
           </p>
           <div class="hero__actions">
             <button class="button button--primary" id="cycleBriefButton" type="button">Cycle Mission Brief</button>
-            <a class="button button--ghost" href="#pillars">View Core Pillars</a>
+            <button class="button button--ghost" id="focusHotspotButton" type="button">Focus Hotspot</button>
           </div>
         </div>
 
@@ -53,60 +53,39 @@
       </header>
 
       <main>
-        <section class="section" id="pillars">
-          <div class="section-heading">
-            <p class="eyebrow">Core pillars</p>
-            <h2>Built for mood, traversal, and high-stakes recovery runs.</h2>
+        <section class="demo-layout">
+          <div class="demo-frame">
+            <canvas id="dockCanvas" width="1180" height="700" aria-label="Starfall Protocol orbital dock environment demo"></canvas>
+            <div class="demo-overlay">
+              <div class="overlay-chip">Move: WASD</div>
+              <div class="overlay-chip">Inspect: E</div>
+              <div class="overlay-chip">Sprint: Shift</div>
+            </div>
           </div>
-          <div class="pillars">
-            <article>
-              <h3>Third-person combat</h3>
-              <p>Mobile gunplay, short-burst powers, shoulder-cam pressure, and tight arena reads.</p>
-            </article>
-            <article>
-              <h3>Orbital salvage fiction</h3>
-              <p>Each mission is a raid into a dying megastructure with a clear objective and exit fantasy.</p>
-            </article>
-            <article>
-              <h3>Squad command texture</h3>
-              <p>Small-team tactics, loadout contrast, and hard choices about what to recover or destroy.</p>
-            </article>
-          </div>
-        </section>
 
-        <section class="section split">
-          <div>
-            <p class="eyebrow">World frame</p>
-            <h2>The network died. The ruins kept talking.</h2>
-            <p>
-              Starfall Protocol imagines a post-collapse solar frontier where transit rings, sky docks,
-              and climate engines still drift in half-working chains above inhabited worlds. Your team is one of the
-              few groups capable of getting in and out with both data and survivors.
-            </p>
-          </div>
-          <div class="signal-grid">
+          <aside class="signal-grid">
             <div class="signal-card">
-              <span>Biome</span>
-              <strong>Storm-wrapped orbitals</strong>
+              <span>Area</span>
+              <strong id="zoneName">Aurelion Dock // Hangar Spine</strong>
             </div>
             <div class="signal-card">
-              <span>Camera feel</span>
-              <strong>Close, physical, cinematic</strong>
+              <span>Nearest hotspot</span>
+              <strong id="hotspotName">Survey the room</strong>
             </div>
             <div class="signal-card">
-              <span>Mission loop</span>
-              <strong>Insert, recover, exfil</strong>
+              <span>Readout</span>
+              <strong id="hotspotDetail">Move through the dock and inspect the terminals, breach door, and observation glass.</strong>
             </div>
             <div class="signal-card">
-              <span>Target mood</span>
-              <strong>Melancholic high tech</strong>
+              <span>Concept target</span>
+              <strong>Traversal + scan + breach</strong>
             </div>
-          </div>
+          </aside>
         </section>
 
         <section class="section footer-call">
-          <p class="eyebrow">Early route</p>
-          <h2>Next step: prototype the traversal-combat loop, then harden the mission structure around it.</h2>
+          <p class="eyebrow">Environment slice</p>
+          <h2>This is the first room in the game: a dockside recon space, built to prove mood, layout, and interaction rhythm.</h2>
         </section>
       </main>
     </div>
