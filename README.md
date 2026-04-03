@@ -1,11 +1,11 @@
 # Starfall Protocol
 
-Early GitHub Pages foundation for a third-person sci-fi action game concept.
+`Starfall Protocol` is now a preproduction repo for a desktop-targeted third-person cyberpunk action game.
 
-The current site is a cinematic concept page that establishes:
+The GitHub Pages site is the public concept surface. The production direction lives in [DESIGN-BIBLE.md](./DESIGN-BIBLE.md).
 
-- the world and mission fantasy
-- core design pillars
-- the intended tone for the eventual playable prototype
+## Current repo purpose
 
-It is intentionally static and lightweight so it can ship cleanly on GitHub Pages while the real gameplay prototype is still being defined.
+- public-facing concept layer on GitHub Pages
+- production design bible for the full desktop game
+- staging ground for the eventual vertical slice
