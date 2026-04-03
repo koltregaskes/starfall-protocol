@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Starfall Protocol is an early concept page for a cinematic third-person science-fiction action game."
+    />
+    <title>Starfall Protocol</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <canvas id="starfield" aria-hidden="true"></canvas>
+    <div class="shell">
+      <header class="hero">
+        <div class="hero__copy">
+          <p class="eyebrow">Third-person science-fiction action game</p>
+          <p class="brand">Starfall Protocol</p>
+          <h1>Lead a black-ops recovery team into collapsing orbital worlds.</h1>
+          <p class="lede">
+            A cinematic action project about boarding ruined stations, surviving synthetic warzones,
+            and choosing which fragments of a fallen interstellar network deserve to live on.
+          </p>
+          <div class="hero__actions">
+            <button class="button button--primary" id="cycleBriefButton" type="button">Cycle Mission Brief</button>
+            <a class="button button--ghost" href="#pillars">View Core Pillars</a>
+          </div>
+        </div>
+
+        <aside class="mission-panel">
+          <p class="eyebrow">Live brief</p>
+          <h2 id="briefTitle">Ghost Signal at Aurelion Gate</h2>
+          <p id="briefBody">
+            Board a torn-open transit fortress, recover the navigation seed, and escape before the station folds into
+            the atmosphere below.
+          </p>
+          <dl class="mission-panel__meta">
+            <div>
+              <dt>Squad tone</dt>
+              <dd id="briefTone">Cold precision</dd>
+            </div>
+            <div>
+              <dt>Primary threat</dt>
+              <dd id="briefThreat">Synthetic guardians</dd>
+            </div>
+            <div>
+              <dt>Extraction route</dt>
+              <dd id="briefExtraction">Hull breach skydive</dd>
+            </div>
+          </dl>
+        </aside>
+      </header>
+
+      <main>
+        <section class="section" id="pillars">
+          <div class="section-heading">
+            <p class="eyebrow">Core pillars</p>
+            <h2>Built for mood, traversal, and high-stakes recovery runs.</h2>
+          </div>
+          <div class="pillars">
+            <article>
+              <h3>Third-person combat</h3>
+              <p>Mobile gunplay, short-burst powers, shoulder-cam pressure, and tight arena reads.</p>
+            </article>
+            <article>
+              <h3>Orbital salvage fiction</h3>
+              <p>Each mission is a raid into a dying megastructure with a clear objective and exit fantasy.</p>
+            </article>
+            <article>
+              <h3>Squad command texture</h3>
+              <p>Small-team tactics, loadout contrast, and hard choices about what to recover or destroy.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section split">
+          <div>
+            <p class="eyebrow">World frame</p>
+            <h2>The network died. The ruins kept talking.</h2>
+            <p>
+              Starfall Protocol imagines a post-collapse solar frontier where transit rings, sky docks,
+              and climate engines still drift in half-working chains above inhabited worlds. Your team is one of the
+              few groups capable of getting in and out with both data and survivors.
+            </p>
+          </div>
+          <div class="signal-grid">
+            <div class="signal-card">
+              <span>Biome</span>
+              <strong>Storm-wrapped orbitals</strong>
+            </div>
+            <div class="signal-card">
+              <span>Camera feel</span>
+              <strong>Close, physical, cinematic</strong>
+            </div>
+            <div class="signal-card">
+              <span>Mission loop</span>
+              <strong>Insert, recover, exfil</strong>
+            </div>
+            <div class="signal-card">
+              <span>Target mood</span>
+              <strong>Melancholic high tech</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="section footer-call">
+          <p class="eyebrow">Early route</p>
+          <h2>Next step: prototype the traversal-combat loop, then harden the mission structure around it.</h2>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
