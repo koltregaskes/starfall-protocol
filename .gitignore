@@ -1,5 +1,10 @@
 .serve.log
 .serve.err.log
+.preview.log
+.preview.err.log
+.verification-*.png
+dist/
+node_modules/
 .DS_Store
 Thumbs.db
 

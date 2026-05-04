@@ -1,0 +1,21 @@
+{
+  "name": "starfall-protocol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:local": "tsc && vite build --base=/",
+    "capture:review": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\capture-review.ps1",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.181.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.183.1",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1"
+  }
+}

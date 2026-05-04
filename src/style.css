@@ -1,0 +1,909 @@
+@import url("https://fonts.googleapis.com/css2?family=Aldrich&family=Chakra+Petch:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  font-family: "Chakra Petch", "Segoe UI", sans-serif;
+  line-height: 1.4;
+  font-weight: 400;
+  --panel: rgba(7, 12, 20, 0.74);
+  --line: rgba(126, 193, 255, 0.18);
+  --text: #ebf7ff;
+  --muted: #97adc1;
+  --accent: #74ebff;
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(13, 42, 62, 0.7), transparent 32%),
+    radial-gradient(circle at 82% 18%, rgba(32, 76, 119, 0.4), transparent 28%),
+    linear-gradient(180deg, #07101c 0%, #02060d 100%);
+  color: var(--text);
+}
+
+body {
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.app-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.scene-host {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-host canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud__objective,
+.hud__status,
+.hud__callout,
+.hud__tutorial,
+.hud__prompt,
+.intel-drawer,
+.overlay__panel,
+.overlay__brand,
+.overlay__modal {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.hud__objective {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  max-width: min(420px, calc(100vw - 48px));
+  padding: 16px 18px 18px;
+  border-radius: 22px;
+}
+
+.hud__eyebrow,
+.overlay__eyebrow,
+.drawer__eyebrow,
+.status-pill__label {
+  margin: 0 0 8px;
+  color: var(--accent);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.hud__title,
+.overlay__logo,
+.overlay__content-title,
+.overlay__modal h2,
+.intel-drawer h3 {
+  margin: 0;
+  font-family: "Aldrich", "Chakra Petch", sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.hud__title {
+  font-size: clamp(1.25rem, 2vw, 1.85rem);
+}
+
+.hud__detail,
+.hud__location,
+.hud__callout-text,
+.hud__tutorial-text,
+.overlay__lede,
+.overlay__content-body,
+.drawer__copy,
+.drawer__log {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.hud__status {
+  position: absolute;
+  right: 24px;
+  top: 24px;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 22px;
+  pointer-events: auto;
+}
+
+.status-pill {
+  min-width: 124px;
+}
+
+.status-pill strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1.05rem;
+}
+
+.status-pill__meter,
+.hud__prompt-track {
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-pill__fill,
+.hud__prompt-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  transition: width 120ms linear;
+}
+
+.health-fill {
+  background: linear-gradient(90deg, #5de3ff 0%, #b2ffff 100%);
+}
+
+.exposure-fill {
+  background: linear-gradient(90deg, #ffc26a 0%, #ff7c56 100%);
+}
+
+.hud__intel-toggle {
+  align-self: stretch;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.hud__callout {
+  position: absolute;
+  left: 24px;
+  bottom: 26px;
+  max-width: min(420px, calc(100vw - 48px));
+  padding: 16px 18px;
+  border-radius: 20px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  color: var(--accent);
+  background: rgba(116, 235, 255, 0.09);
+  border: 1px solid rgba(116, 235, 255, 0.24);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.status-badge.is-alert {
+  color: #ffd2c1;
+  background: rgba(255, 109, 71, 0.16);
+  border-color: rgba(255, 109, 71, 0.35);
+}
+
+.hud__tutorial {
+  position: absolute;
+  right: 24px;
+  bottom: 28px;
+  width: min(360px, calc(100vw - 48px));
+  padding: 16px 18px;
+  border-radius: 20px;
+}
+
+.hud__prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  min-width: min(360px, calc(100vw - 48px));
+  max-width: min(440px, calc(100vw - 48px));
+  padding: 12px 14px;
+  border-radius: 999px;
+}
+
+.hud__prompt-text {
+  margin: 0 0 8px;
+  text-align: center;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.hud__prompt-fill {
+  background: linear-gradient(90deg, var(--accent) 0%, #ffc46d 100%);
+}
+
+.intel-drawer {
+  position: absolute;
+  top: 104px;
+  right: 24px;
+  width: min(360px, calc(100vw - 48px));
+  padding: 18px 18px 20px;
+  border-radius: 24px;
+  transform: translateX(calc(100% + 28px));
+  transition: transform 220ms ease;
+  pointer-events: auto;
+}
+
+.intel-drawer.is-open {
+  transform: translateX(0);
+}
+
+.drawer__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.drawer__sequence {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.drawer__step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.drawer__step span {
+  color: var(--accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.drawer__step strong {
+  color: var(--text);
+  font-size: 0.86rem;
+  letter-spacing: 0.04em;
+}
+
+.drawer__step.is-active {
+  border-color: rgba(116, 235, 255, 0.34);
+  background: rgba(116, 235, 255, 0.08);
+  transform: translateX(-4px);
+}
+
+.drawer__step.is-complete {
+  border-color: rgba(140, 255, 214, 0.26);
+  background: rgba(140, 255, 214, 0.08);
+}
+
+.drawer__step.is-complete strong {
+  color: #e6fff4;
+}
+
+.drawer__controls span {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.drawer__log {
+  margin-top: 18px;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 13, 0.5) 0%, rgba(2, 6, 13, 0.88) 100%),
+    radial-gradient(circle at top right, rgba(47, 113, 173, 0.24), transparent 34%);
+}
+
+.overlay__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.88fr);
+  gap: 22px;
+  width: min(1120px, 100%);
+}
+
+.overlay__brand,
+.overlay__panel,
+.overlay__modal {
+  border-radius: 30px;
+  padding: 28px;
+}
+
+.overlay__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.overlay__logo {
+  font-size: clamp(2rem, 4.2vw, 4.4rem);
+}
+
+.overlay__brand h1 {
+  margin: 18px 0 14px;
+  font-family: "Aldrich", "Chakra Petch", sans-serif;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+  line-height: 0.95;
+}
+
+.overlay__lede {
+  max-width: 56ch;
+  line-height: 1.6;
+}
+
+.overlay__menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.overlay__menu--stack {
+  margin-top: 20px;
+  flex-direction: column;
+}
+
+.overlay__content {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 14px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.overlay__content-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1.18rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.button--primary {
+  background: linear-gradient(135deg, rgba(116, 235, 255, 0.18) 0%, rgba(255, 196, 109, 0.2) 100%);
+  border-color: rgba(116, 235, 255, 0.35);
+}
+
+.button--ghost.is-active {
+  background: rgba(116, 235, 255, 0.12);
+  border-color: rgba(116, 235, 255, 0.34);
+}
+
+.briefing-rail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 24px 0 20px;
+}
+
+.briefing-rail__item,
+.briefing-summary,
+.briefing-record,
+.briefing-report,
+.briefing-card,
+.briefing-option {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.briefing-rail__item {
+  padding: 0.85rem 0.9rem;
+  border-radius: 18px;
+}
+
+.briefing-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.briefing-value {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+}
+
+.briefing-cards,
+.briefing-grid,
+.briefing-summary-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.briefing-cards {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.briefing-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.briefing-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.briefing-card,
+.briefing-option {
+  padding: 1rem 1rem 1.05rem;
+  border-radius: 22px;
+}
+
+.briefing-card h3,
+.briefing-option h3 {
+  margin: 0;
+  font-family: "Aldrich", "Chakra Petch", sans-serif;
+  letter-spacing: 0.04em;
+  font-size: 1.1rem;
+}
+
+.briefing-card p,
+.briefing-option p,
+.briefing-copy {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.briefing-card__eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.briefing-option {
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.briefing-option.is-selected {
+  border-color: rgba(116, 235, 255, 0.36);
+  background: rgba(116, 235, 255, 0.08);
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.skill-card {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.skill-card h3 {
+  margin: 0;
+  font-family: "Aldrich", "Chakra Petch", sans-serif;
+  letter-spacing: 0.04em;
+  font-size: 1.02rem;
+}
+
+.skill-card p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.skill-card.is-unlockable {
+  border-color: rgba(255, 196, 109, 0.4);
+  background: rgba(255, 196, 109, 0.08);
+}
+
+.skill-card.is-unlocked {
+  border-color: rgba(116, 235, 255, 0.36);
+  background: rgba(116, 235, 255, 0.1);
+}
+
+.skill-card.is-locked {
+  opacity: 0.72;
+}
+
+.skill-card:disabled {
+  cursor: not-allowed;
+}
+
+.briefing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.briefing-tags span {
+  padding: 0.45rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.briefing-summary {
+  padding: 0.85rem 0.9rem;
+  border-radius: 18px;
+}
+
+.briefing-summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.briefing-summary strong {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.briefing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.briefing-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.campaign-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.campaign-card {
+  padding: 0.85rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.campaign-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.campaign-card strong {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.campaign-meter {
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.campaign-meter__fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.campaign-meter__fill--danger {
+  background: linear-gradient(90deg, #ffb06c 0%, #ff6f58 100%);
+}
+
+.campaign-meter__fill--good {
+  background: linear-gradient(90deg, #6ee7ff 0%, #9dffdf 100%);
+}
+
+.campaign-meter__fill--warn {
+  background: linear-gradient(90deg, #8aa8ff 0%, #e3c2ff 100%);
+}
+
+.briefing-record,
+.briefing-report {
+  display: grid;
+  gap: 4px;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+}
+
+.briefing-record strong,
+.briefing-report strong {
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+}
+
+.briefing-report--stable {
+  border-color: rgba(110, 231, 255, 0.24);
+}
+
+.briefing-report--heated {
+  border-color: rgba(255, 196, 109, 0.3);
+}
+
+.briefing-report--critical {
+  border-color: rgba(255, 109, 71, 0.35);
+  background: rgba(255, 109, 71, 0.08);
+}
+
+.briefing-record span,
+.briefing-report span,
+.briefing-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.briefing-empty {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px dashed var(--line);
+}
+
+.overlay__modal {
+  width: min(480px, 100%);
+  text-align: center;
+}
+
+.result-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.result-metric {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+  text-align: left;
+}
+
+.result-metric span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.result-metric strong {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 960px) {
+  body {
+    overflow: auto;
+  }
+
+  .overlay__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hud__status {
+    left: 24px;
+    right: 24px;
+    top: auto;
+    bottom: 138px;
+    justify-content: space-between;
+  }
+
+  .intel-drawer {
+    top: auto;
+    bottom: 220px;
+    left: 24px;
+    right: 24px;
+    width: auto;
+    transform: translateY(140%);
+  }
+
+  .intel-drawer.is-open {
+    transform: translateY(0);
+  }
+
+  .hud__tutorial {
+    bottom: 104px;
+  }
+
+  .hud__prompt {
+    bottom: 28px;
+  }
+
+  .briefing-cards,
+  .briefing-summary-grid,
+  .briefing-grid,
+  .campaign-grid,
+  .skill-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .overlay {
+    padding: 16px;
+  }
+
+  .overlay__grid {
+    gap: 14px;
+  }
+
+  .overlay__brand,
+  .overlay__panel,
+  .overlay__modal {
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .overlay__panel {
+    order: 1;
+  }
+
+  .overlay__brand {
+    order: 2;
+  }
+
+  .overlay__logo {
+    font-size: clamp(1.55rem, 8vw, 2.2rem);
+  }
+
+  .overlay__brand h1 {
+    margin: 16px 0 12px;
+    font-size: clamp(1.5rem, 7.6vw, 2.25rem);
+    line-height: 1;
+  }
+
+  .briefing-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 18px 0 16px;
+  }
+
+  .overlay__content {
+    margin-top: 18px;
+  }
+
+  .overlay__lede,
+  .briefing-copy,
+  .briefing-card p,
+  .briefing-option p {
+    font-size: 0.9rem;
+  }
+
+  .hud__objective,
+  .hud__status,
+  .hud__callout {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+
+  .hud__objective {
+    top: 16px;
+    padding: 14px 16px 16px;
+  }
+
+  .hud__status {
+    top: 132px;
+    bottom: auto;
+    flex-direction: row;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .status-pill {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .status-pill strong {
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+  }
+
+  .hud__intel-toggle {
+    min-width: 88px;
+    padding: 0.6rem 0.7rem;
+  }
+
+  .hud__tutorial {
+    display: none;
+  }
+
+  .hud__callout {
+    bottom: 16px;
+    padding: 14px 16px;
+  }
+
+  .hud__prompt {
+    bottom: 116px;
+    min-width: 0;
+  }
+
+  .result-metrics {
+    grid-template-columns: 1fr;
+  }
+}
