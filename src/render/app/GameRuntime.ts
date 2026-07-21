@@ -1,4 +1,12 @@
 import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
 import { DOOR_OBSTACLE, MISSION_POINTS, STATIC_OBSTACLES, WORLD_BOUNDS } from "../../game/content/mission";
 import type { GuardState, SimulationState } from "../../game/simulation/types";
@@ -130,6 +138,18 @@ export class GameRuntime {
 
   private readonly camera: THREE.PerspectiveCamera;
 
+  private readonly composer: EffectComposer;
+
+  private readonly mixers: THREE.AnimationMixer[] = [];
+
+  private guardModel: { scene: THREE.Group; clips: THREE.AnimationClip[] } | null = null;
+
+  private playerActions: { idle: THREE.AnimationAction; walk: THREE.AnimationAction; run: THREE.AnimationAction } | null = null;
+
+  private activePlayerAction: THREE.AnimationAction | null = null;
+
+  private readonly prevPlayerPos = new THREE.Vector3();
+
   private readonly playerMesh: THREE.Group;
 
   private readonly guardMeshes = new Map<string, ActorVisual>();
@@ -182,6 +202,12 @@ export class GameRuntime {
     this.container.append(this.renderer.domElement);
     this.renderer.domElement.addEventListener("webglcontextlost", this.handleContextLost, false);
     this.renderer.domElement.addEventListener("webglcontextrestored", this.handleContextRestored, false);
+
+    // Image-based lighting: gives every PBR (MeshStandardMaterial) surface real reflections.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.45;
+    void this.loadHdri();
 
     this.scene.add(new THREE.HemisphereLight("#79b8ff", "#04070d", 0.78));
     const key = new THREE.DirectionalLight("#bfd5ff", 1.85);
@@ -256,8 +282,40 @@ export class GameRuntime {
     this.relayMarker.visible = false;
     this.scene.add(this.relayMarker);
 
+    void this.loadModels();
+
+    // Post-processing: cinematic bloom on the emissive accents, tone-mapped output.
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.6, 0.8);
+    this.composer.addPass(bloom);
+    this.composer.addPass(new OutputPass());
+
     window.addEventListener("resize", this.handleResize);
     this.handleResize();
+    (window as unknown as { __sfRuntime?: GameRuntime }).__sfRuntime = this;
+  }
+
+  debugSnapshot() {
+    const describe = (object: THREE.Object3D) => {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = box.getSize(new THREE.Vector3());
+      return {
+        children: object.children.length,
+        visible: object.visible,
+        position: object.position.toArray().map((v) => Number(v.toFixed(2))),
+        scale: object.scale.toArray().map((v) => Number(v.toFixed(4))),
+        boxSize: size.toArray().map((v) => Number(v.toFixed(2))),
+        childScales: object.children.map((c) => Number(c.scale.x.toFixed(4))),
+      };
+    };
+    return {
+      player: describe(this.playerMesh),
+      guardCount: this.guardMeshes.size,
+      guards: [...this.guardMeshes.values()].slice(0, 2).map((v) => describe(v.root)),
+      guardModelLoaded: Boolean(this.guardModel),
+      mixers: this.mixers.length,
+    };
   }
 
   dispose() {
@@ -275,6 +333,8 @@ export class GameRuntime {
       return;
     }
 
+    for (const mixer of this.mixers) mixer.update(dt);
+    this.updatePlayerLocomotion(state, dt);
     this.updatePlayer(state, dt);
     this.updateGuards(state);
     this.updateTurret(state, dt);
@@ -286,7 +346,7 @@ export class GameRuntime {
     this.updateObjectiveMarkers(state);
     this.updateBackdrop(state);
     this.updateCamera(state, dt);
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
   }
 
   private readonly handleResize = () => {
@@ -295,6 +355,7 @@ export class GameRuntime {
     this.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.getPixelRatioCap()));
     this.renderer.setSize(this.viewport.x, this.viewport.y);
+    this.composer.setSize(this.viewport.x, this.viewport.y);
   };
 
   private readonly handleContextLost = (event: Event) => {
@@ -581,6 +642,134 @@ export class GameRuntime {
     return { root, head };
   }
 
+  private fitModel(object: THREE.Object3D, targetHeight: number) {
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const scale = targetHeight / Math.max(size.y, 0.0001);
+    object.scale.setScalar(scale);
+    const grounded = new THREE.Box3().setFromObject(object);
+    const center = grounded.getCenter(new THREE.Vector3());
+    object.position.x -= center.x;
+    object.position.z -= center.z;
+    object.position.y -= grounded.min.y;
+  }
+
+  private playClip(object: THREE.Object3D, clips: THREE.AnimationClip[], preferred: string) {
+    if (!clips.length) return;
+    const clip = THREE.AnimationClip.findByName(clips, preferred)
+      ?? clips.find((c) => /idle/i.test(c.name))
+      ?? clips[0];
+    const mixer = new THREE.AnimationMixer(object);
+    mixer.clipAction(clip).play();
+    this.mixers.push(mixer);
+  }
+
+  private async loadHdri() {
+    try {
+      const texture = await new RGBELoader().loadAsync(new URL("hdri/hangar_2k.hdr", document.baseURI).href);
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.scene.environment = pmrem.fromEquirectangular(texture).texture;
+      this.scene.environmentIntensity = 0.65;
+      texture.dispose();
+      pmrem.dispose();
+    } catch {
+      /* keep the RoomEnvironment fallback set in the constructor */
+    }
+  }
+
+  private async loadModels() {
+    const loader = new GLTFLoader();
+    const url = (path: string) => new URL(path, document.baseURI).href;
+
+    try {
+      const gltf = await loader.loadAsync(url("models/soldier.glb"));
+      this.applyPlayerModel(gltf.scene, gltf.animations);
+      console.info("[starfall] player model ready");
+    } catch (error) {
+      console.warn("[starfall] player model failed to load, using placeholder", error);
+    }
+
+    try {
+      const gltf = await loader.loadAsync(url("models/robot.glb"));
+      this.guardModel = { scene: gltf.scene, clips: gltf.animations };
+      this.refreshGuardVisuals();
+      console.info("[starfall] guard model ready");
+    } catch (error) {
+      console.warn("[starfall] guard model failed to load, using placeholder", error);
+    }
+
+    try {
+      const gltf = await loader.loadAsync(url("models/turret.glb"));
+      this.applyTurretModel(gltf.scene);
+      console.info("[starfall] turret model ready");
+    } catch (error) {
+      console.warn("[starfall] turret model failed to load, using placeholder", error);
+    }
+  }
+
+  private prepareSkinned(model: THREE.Object3D) {
+    model.traverse((child: THREE.Object3D) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        // Skinned meshes animate outside their bind-pose bounds; never cull them.
+        child.frustumCulled = false;
+      }
+    });
+  }
+
+  private applyPlayerModel(scene: THREE.Group, clips: THREE.AnimationClip[]) {
+    const model = cloneSkeleton(scene) as THREE.Group;
+    this.prepareSkinned(model);
+    // three.js Soldier.glb is authored human-sized (~1.7 units); auto-fitting a
+    // skinned mesh measures its bind-space geometry and mis-scales wildly.
+    model.scale.setScalar(1);
+    model.rotation.y = Math.PI;
+    this.playerMesh.clear();
+    this.playerMesh.add(model);
+
+    const find = (name: string) => THREE.AnimationClip.findByName(clips, name);
+    const idleClip = find("Idle");
+    const walkClip = find("Walk");
+    const runClip = find("Run");
+    if (idleClip && walkClip && runClip) {
+      const mixer = new THREE.AnimationMixer(model);
+      this.playerActions = {
+        idle: mixer.clipAction(idleClip),
+        walk: mixer.clipAction(walkClip),
+        run: mixer.clipAction(runClip),
+      };
+      this.playerActions.idle.play();
+      this.activePlayerAction = this.playerActions.idle;
+      this.mixers.push(mixer);
+    } else {
+      this.playClip(model, clips, "Idle");
+    }
+  }
+
+  private updatePlayerLocomotion(state: SimulationState, dt: number) {
+    if (!this.playerActions || dt <= 0) return;
+    const speed = Math.hypot(
+      state.player.position.x - this.prevPlayerPos.x,
+      state.player.position.z - this.prevPlayerPos.z,
+    ) / dt;
+    this.prevPlayerPos.set(state.player.position.x, 0, state.player.position.z);
+
+    const next = speed > 4.4 ? this.playerActions.run : speed > 0.4 ? this.playerActions.walk : this.playerActions.idle;
+    if (next !== this.activePlayerAction) {
+      next.reset().fadeIn(0.22).play();
+      this.activePlayerAction?.fadeOut(0.22);
+      this.activePlayerAction = next;
+    }
+  }
+
+  private applyTurretModel(scene: THREE.Group) {
+    const model = scene.clone(true);
+    model.traverse((child: THREE.Object3D) => { if (child instanceof THREE.Mesh) child.castShadow = true; });
+    this.fitModel(model, 1.4);
+    this.turretHead.clear();
+    this.turretHead.add(model);
+  }
+
   private updatePlayer(state: SimulationState, dt: number) {
     this.playerMesh.position.set(state.player.position.x, 0, state.player.position.z);
     this.playerMesh.rotation.y = state.player.facing;
@@ -591,14 +780,27 @@ export class GameRuntime {
     const existing = this.guardMeshes.get(guard.id);
     if (existing) return existing;
 
-    const root = createCharacter(guard.type === "drone" ? "#ffb26d" : "#ff7a52");
-    if (guard.type === "drone") {
-      root.scale.setScalar(0.92);
-      root.position.y = 0.5;
+    let root: THREE.Group;
+    if (this.guardModel) {
+      root = new THREE.Group();
+      const model = cloneSkeleton(this.guardModel.scene) as THREE.Group;
+      this.prepareSkinned(model);
+      // RobotExpressive is ~2.6 units tall natively; use fixed scales per role.
+      model.scale.setScalar(guard.type === "drone" ? 0.5 : 0.62);
+      model.rotation.y = Math.PI;
+      root.add(model);
+      // Guards patrol constantly; the Walking clip reads correctly in motion.
+      this.playClip(model, this.guardModel.clips, "Walking");
+    } else {
+      root = createCharacter(guard.type === "drone" ? "#ffb26d" : "#ff7a52");
+      if (guard.type === "drone") {
+        root.scale.setScalar(0.92);
+        root.position.y = 0.5;
+      }
+      root.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh) child.castShadow = true;
+      });
     }
-    root.traverse((child: THREE.Object3D) => {
-      if (child instanceof THREE.Mesh) child.castShadow = true;
-    });
 
     const vision = createVisionCone(guard.type === "drone" ? "#ffcf7d" : "#ff7a52");
     root.add(vision);
@@ -607,6 +809,22 @@ export class GameRuntime {
     const visual = { root, vision };
     this.guardMeshes.set(guard.id, visual);
     return visual;
+  }
+
+  private refreshGuardVisuals() {
+    // Guards created before the model finished loading are placeholder boxes;
+    // drop them so the next frame recreates them from the loaded model.
+    for (const visual of this.guardMeshes.values()) {
+      this.scene.remove(visual.root);
+      visual.root.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach((material) => material.dispose());
+        }
+      });
+    }
+    this.guardMeshes.clear();
   }
 
   private updateGuards(state: SimulationState) {
