@@ -4,9 +4,12 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
+
+import { CinematicGradeShader, makePanelNormal, makePanelRoughness } from "./artDirection";
 
 import { DOOR_OBSTACLE, MISSION_POINTS, STATIC_OBSTACLES, WORLD_BOUNDS } from "../../game/content/mission";
 import type { GuardState, SimulationState } from "../../game/simulation/types";
@@ -182,6 +185,12 @@ export class GameRuntime {
 
   private readonly reviewMode = new URLSearchParams(window.location.search).get("review") === "1";
 
+  private gradePass!: ShaderPass;
+
+  private panelMaps!: { wallRough: THREE.Texture; wallNormal: THREE.Texture };
+
+  private elapsed = 0;
+
   private contextLost = false;
 
   constructor(container: HTMLElement) {
@@ -206,26 +215,41 @@ export class GameRuntime {
     // Image-based lighting: gives every PBR (MeshStandardMaterial) surface real reflections.
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.45;
+    // Kept deliberately low. IBL flood is the single biggest cause of the
+    // "lit like a product turntable" look - it fills every shadow and destroys
+    // the value range that makes a frame read as designed.
+    this.scene.environmentIntensity = 0.16;
     void this.loadHdri();
 
-    this.scene.add(new THREE.HemisphereLight("#79b8ff", "#04070d", 0.78));
-    const key = new THREE.DirectionalLight("#bfd5ff", 1.85);
-    key.position.set(-9, 17, 8);
+    // Ambient is a floor, not a light source. High hemisphere intensity washes
+    // out shape; this only keeps shadows from going fully black.
+    this.scene.add(new THREE.HemisphereLight("#4d84c8", "#03060c", 0.22));
+
+    // Key: low and raking (~24 deg) so every object throws a long, readable
+    // shadow and surfaces get a grazing highlight that reveals their relief.
+    const key = new THREE.DirectionalLight("#dbe8ff", 3.4);
+    key.position.set(-17, 7.6, 9);
     key.castShadow = true;
     key.shadow.mapSize.setScalar(2048);
     key.shadow.camera.left = -28;
     key.shadow.camera.right = 28;
     key.shadow.camera.top = 28;
     key.shadow.camera.bottom = -28;
+    key.shadow.camera.near = 0.5;
+    key.shadow.camera.far = 70;
+    key.shadow.bias = -0.0009;
+    key.shadow.normalBias = 0.022;
     this.scene.add(key);
 
-    const rim = new THREE.PointLight("#55c9ff", 2.1, 28, 2.1);
-    rim.position.set(13, 8, 6);
+    // Rim from behind-right: separates silhouettes from the background, which is
+    // what makes characters read instantly at gameplay distance.
+    const rim = new THREE.DirectionalLight("#59d6ff", 2.4);
+    rim.position.set(16, 6.5, -12);
     this.scene.add(rim);
 
-    const fill = new THREE.PointLight("#ff8f54", 1.4, 18, 2.2);
-    fill.position.set(-14, 5, 13);
+    // Warm practical bounce - the complementary accent against all that cyan.
+    const fill = new THREE.PointLight("#ff8a46", 2.6, 26, 2.0);
+    fill.position.set(-13, 4.2, 12);
     this.scene.add(fill);
 
     this.buildEnvironment();
@@ -284,12 +308,20 @@ export class GameRuntime {
 
     void this.loadModels();
 
-    // Post-processing: cinematic bloom on the emissive accents, tone-mapped output.
+    // Post-processing: bloom on the emissive accents, then the cinematic grade
+    // (contrast, split-tone, vignette, aberration, grain) which is what makes the
+    // raw render read as a finished game frame. Grade sits AFTER OutputPass so it
+    // works in display space, where contrast and vignette behave predictably.
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.6, 0.8);
+    // Threshold high and strength modest: bloom should be a halo on genuine
+    // light sources, never a wash. Low thresholds bloom lit diffuse surfaces
+    // too and blow the frame out.
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.34, 0.85, 0.98);
     this.composer.addPass(bloom);
     this.composer.addPass(new OutputPass());
+    this.gradePass = new ShaderPass(CinematicGradeShader);
+    this.composer.addPass(this.gradePass);
 
     window.addEventListener("resize", this.handleResize);
     this.handleResize();
@@ -332,6 +364,11 @@ export class GameRuntime {
     if (this.contextLost) {
       return;
     }
+
+    this.elapsed += dt;
+    // Animated grain: a static grain pattern reads as a dirty lens, a moving one
+    // reads as film. Wrapped so the uniform never loses float precision.
+    this.gradePass.uniforms.time.value = this.elapsed % 1000;
 
     for (const mixer of this.mixers) mixer.update(dt);
     this.updatePlayerLocomotion(state, dt);
@@ -413,7 +450,22 @@ export class GameRuntime {
   }
 
   private buildEnvironment() {
-    const floorMaterial = makeMetal("#0a1623", "#133d53", 0.24, 0.82);
+    // Procedural panelling. Without surface detail there is nothing for the
+    // raking key light to break across, and every box reads as a blockout.
+    const deckRough = makePanelRoughness(512, 7);
+    const deckNormal = makePanelNormal(512, 7);
+    deckRough.repeat.set(9, 8);
+    deckNormal.repeat.set(9, 8);
+
+    const wallRough = makePanelRoughness(512, 21);
+    const wallNormal = makePanelNormal(512, 21);
+    wallRough.repeat.set(7, 1.4);
+    wallNormal.repeat.set(7, 1.4);
+
+    const floorMaterial = makeMetal("#0a1623", "#0d2b3d", 0.24, 0.82);
+    floorMaterial.roughnessMap = deckRough;
+    floorMaterial.normalMap = deckNormal;
+    floorMaterial.normalScale.set(0.7, 0.7);
     const floor = new THREE.Mesh(
       new THREE.BoxGeometry(WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX, 0.35, WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ),
       floorMaterial,
@@ -421,6 +473,7 @@ export class GameRuntime {
     floor.position.y = -0.2;
     floor.receiveShadow = true;
     this.scene.add(floor);
+    this.panelMaps = { wallRough, wallNormal };
 
     const trimMaterial = makeMetal("#19324e", "#4ad7ff", 0.18, 0.44);
     for (let x = -16; x <= 16; x += 4) {
@@ -433,7 +486,10 @@ export class GameRuntime {
     returnStrip.position.set(-4, 0.05, 12.2);
     this.scene.add(returnStrip);
 
-    const outerWallMaterial = makeMetal("#0d1626", "#0a2334", 0.42, 0.84);
+    const outerWallMaterial = makeMetal("#0d1626", "#081c2b", 0.42, 0.84);
+    outerWallMaterial.roughnessMap = this.panelMaps.wallRough;
+    outerWallMaterial.normalMap = this.panelMaps.wallNormal;
+    outerWallMaterial.normalScale.set(0.85, 0.85);
     const walls = [
       { position: [0, 3.2, WORLD_BOUNDS.minZ] as [number, number, number], size: [38, 6.6, 0.7] as [number, number, number] },
       { position: [0, 3.2, WORLD_BOUNDS.maxZ] as [number, number, number], size: [38, 6.6, 0.7] as [number, number, number] },
@@ -785,6 +841,11 @@ export class GameRuntime {
       root = new THREE.Group();
       const model = cloneSkeleton(this.guardModel.scene) as THREE.Group;
       this.prepareSkinned(model);
+      // RobotExpressive ships as a bright yellow cartoon mascot, which is
+      // tonally wrong for a stealth game - hostiles must read as a THREAT.
+      // Re-skin to gunmetal with a hot emissive eye-line so they stay readable
+      // against the dark deck without looking friendly.
+      this.makeHostile(model, guard.type === "drone" ? "#ff7a2f" : "#ff3355");
       // RobotExpressive is ~2.6 units tall natively; use fixed scales per role.
       model.scale.setScalar(guard.type === "drone" ? 0.5 : 0.62);
       model.rotation.y = Math.PI;
@@ -809,6 +870,41 @@ export class GameRuntime {
     const visual = { root, vision };
     this.guardMeshes.set(guard.id, visual);
     return visual;
+  }
+
+  /**
+   * Re-skins a loaded model into a hostile silhouette: dark gunmetal body so it
+   * sits back in the palette, with the brightest original parts promoted to a
+   * hot emissive accent so the eye still finds the threat instantly.
+   */
+  private makeHostile(model: THREE.Object3D, accent: string) {
+    const accentColor = new THREE.Color(accent);
+    model.traverse((child: THREE.Object3D) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const wasArray = Array.isArray(child.material);
+      const source = wasArray ? (child.material as THREE.Material[]) : [child.material as THREE.Material];
+      const replaced = source.map((entry) => {
+        const base = entry as THREE.MeshStandardMaterial;
+        const replacement = new THREE.MeshStandardMaterial({
+          color: "#232b36",
+          roughness: 0.52,
+          metalness: 0.86,
+        });
+        // Only the very brightest original parts become the glowing accent - a
+        // low threshold here promotes most of the mascot and the guard ends up
+        // glowing like a lamp instead of reading as armour with a lit visor.
+        const luminance = base.color
+          ? base.color.r * 0.2126 + base.color.g * 0.7152 + base.color.b * 0.0722
+          : 0;
+        if (luminance > 0.72) {
+          replacement.color.set("#1a2029");
+          replacement.emissive = accentColor;
+          replacement.emissiveIntensity = 0.55;
+        }
+        return replacement;
+      });
+      child.material = wasArray ? replaced : replaced[0];
+    });
   }
 
   private refreshGuardVisuals() {
