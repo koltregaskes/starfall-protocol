@@ -662,6 +662,70 @@ export class GameRuntime {
       this.scene.add(light);
       this.alarmLights.push(light);
     }
+
+    this.buildHullForms();
+  }
+
+  // Overhead trusses, wall pipe runs, and recessed bays. These are presentation
+  // only: the mission still collides against STATIC_OBSTACLES, not this dressing.
+  private buildHullForms() {
+    const steel = makeMetal("#121c2c", "#163049", 0.34, 0.78);
+    const warm = makeMetal("#3a2a22", "#ffb15a", 0.28, 0.42);
+    const pipeMaterial = makeMetal("#1a3144", "#2f8fb8", 0.22, 0.66);
+    const inset = makeMetal("#070d16", "#071018", 0.72, 0.4);
+    const lip = makeMetal("#1c4c66", "#7ad7ff", 0.2, 0.5);
+
+    [-6.4, 7.2].forEach((z, index) => {
+      const beam = createBox([34.5, 0.22, 0.34], index === 0 ? warm : steel);
+      beam.position.set(0, 5.35, z);
+      beam.castShadow = true;
+      this.scene.add(beam);
+
+      const rail = createBox([34.5, 0.08, 0.1], steel);
+      rail.position.set(0, 5.62, z);
+      this.scene.add(rail);
+
+      for (let x = -15; x <= 15; x += 6) {
+        const hanger = createBox([0.14, 1.35, 0.14], steel);
+        hanger.position.set(x, 4.55, z);
+        hanger.castShadow = true;
+        this.scene.add(hanger);
+
+        const brace = createBox([1.4, 0.08, 0.08], steel);
+        brace.position.set(x, 5.05, z);
+        brace.rotation.z = x < 0 ? 0.55 : -0.55;
+        this.scene.add(brace);
+      }
+    });
+
+    for (const x of [-17.15, 17.15]) {
+      for (const y of [1.55, 3.35]) {
+        const run = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 28, 10), pipeMaterial);
+        run.rotation.x = Math.PI / 2;
+        run.position.set(x, y, 0);
+        run.castShadow = true;
+        this.scene.add(run);
+      }
+      for (let z = -12; z <= 12; z += 6) {
+        const bracket = createBox([0.28, 0.16, 0.22], steel);
+        bracket.position.set(x, 2.45, z);
+        this.scene.add(bracket);
+      }
+    }
+
+    for (const x of [-10.5, -1.2, 8.4]) {
+      const recess = createBox([3.6, 2.2, 0.42], inset);
+      recess.position.set(x, 2.35, WORLD_BOUNDS.minZ + 0.55);
+      this.scene.add(recess);
+
+      const frame = createBox([4.1, 2.7, 0.12], lip);
+      frame.position.set(x, 2.35, WORLD_BOUNDS.minZ + 0.82);
+      this.scene.add(frame);
+
+      const sill = createBox([3.3, 0.12, 0.28], warm);
+      sill.position.set(x, 1.2, WORLD_BOUNDS.minZ + 0.9);
+      this.scene.add(sill);
+    }
   }
 
   private buildDoor(): THREE.Group {
