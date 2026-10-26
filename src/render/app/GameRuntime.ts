@@ -1067,8 +1067,12 @@ export class GameRuntime {
   private updateGuards(state: SimulationState) {
     for (const guard of state.guards) {
       const visual = this.ensureGuardVisual(guard);
-      visual.root.visible = !guard.down;
-      if (guard.down) continue;
+      const shown = guard.active && !guard.down;
+      visual.root.visible = shown;
+      if (!shown) {
+        visual.vision.visible = false;
+        continue;
+      }
 
       visual.root.position.set(guard.position.x, guard.type === "drone" ? 0.85 + Math.sin(state.elapsed * 4.4 + guard.position.x) * 0.12 : 0, guard.position.z);
       visual.root.rotation.y = guard.facing;
@@ -1168,6 +1172,8 @@ export class GameRuntime {
       this.objectiveMarkers.extraction.position.set(state.gate.x, 0, state.gate.z);
       return;
     }
+
+    this.objectiveMarkers.extraction.position.set(MISSION_POINTS.extraction.x, 0, MISSION_POINTS.extraction.z);
 
     if (state.missionKind === "recovery" && state.objective === "combat") {
       const relay = state.relays.find((entry) => !entry.destroyed);

@@ -15,7 +15,7 @@ A new player reads those three rules on the safehouse board before deploying. Th
 ## The three missions
 
 1. Ghost Signal. Hold E on the skiff ring to insert. Cross the berth, press Q at the overlook, hold E at the archive terminal, hold E to take the navigation seed, shoot the relay drone and the ceiling gun, then hold E at the berth to extract.
-2. Storm Window. The seed is already aboard and the archive is open. The ceiling gun is already live. Shoot both dock relays and that gun, then hold E at the berth to extract. Vitals at zero loses the session.
+2. Storm Window. The seed is already aboard and the archive is open. Guards are already alert and the ceiling gun is live. Shoot both dock relays and that gun, then hold E at the berth to extract. Vitals at zero loses the session.
 3. Cinder Vector. WASD flies the skiff. Three lane guns cover the run to the blue storm gate. Reaching the gate wins the game immediately. Hull zero loses the session. This is the ending.
 
 Future missions on the safehouse board stay locked until the campaign reaches them. After Cinder Vector, Deploy plays the campaign again from Ghost Signal.

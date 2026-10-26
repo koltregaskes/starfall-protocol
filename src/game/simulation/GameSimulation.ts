@@ -307,8 +307,6 @@ export class GameSimulation {
     this.state.hackComplete = true;
     this.state.coreCollected = true;
     this.state.doorOpen = true;
-    this.state.alert = true;
-    this.state.ui.alarm = true;
     this.state.combatComplete = false;
     this.state.extractionReady = false;
     this.state.turret.active = true;
@@ -323,6 +321,7 @@ export class GameSimulation {
     for (const guard of this.state.guards) {
       guard.attackCooldown = 1.6;
     }
+    this.triggerAlert(false);
     this.pushEvent({ type: "sfx", cue: "alarm" });
     this.setCallout(COMMS_LINES.recovery, 7);
     this.updateUiState();
