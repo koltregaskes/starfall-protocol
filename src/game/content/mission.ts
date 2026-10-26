@@ -63,16 +63,16 @@ export const GUARD_ROUTES: Vec2[][] = [
 
 export const MENU_PANELS = {
   Continue: {
-    eyebrow: "Orbital breach demo",
-    title: "Ghost Signal at Aurelion Gate",
+    eyebrow: "Aurelion Gate",
+    title: "Open the evacuation lane",
     body:
-      "Deploy into a failing dock, slip past patrol optics, crack the archive door, and pull the navigation seed before the zone drops dark.",
+      "Finish Ghost Signal, Storm Window, and Cinder Vector in order. You win when the skiff clears the storm gate. You lose if your vitals or the skiff hull hit zero first.",
   },
   Operations: {
-    eyebrow: "Mission frame",
-    title: "Contained review slice",
+    eyebrow: "Campaign",
+    title: "Three missions, one ending",
     body:
-      "Safehouse berth, stealth route through the hangar spine, one security breach, one archive retrieval, one lockdown combat beat, one extraction endpoint.",
+      "Ghost Signal steals the navigation seed. Storm Window destroys the relays and the ceiling gun. Cinder Vector flies the skiff out through the storm gate.",
   },
   Loadout: {
     eyebrow: "Operator kit",
@@ -90,7 +90,7 @@ export const MENU_PANELS = {
     eyebrow: "Play note",
     title: "Best experienced on desktop",
     body:
-      "This browser slice is tuned for keyboard play. Movement uses WASD, sprint uses Shift, scan uses Q, interact uses E, and pulse fire uses F. Audio unlocks after deployment.",
+      "Keyboard play. WASD moves, Shift sprints, Q scans, E interacts, and F fires. On Cinder Vector, WASD flies the skiff. Audio unlocks after deployment.",
   },
 } as const;
 
@@ -103,5 +103,9 @@ export const COMMS_LINES = {
   escalation: "Kestrel: Shutters are down. Turret is up. Clear the relay drone and the ceiling gun to open extraction.",
   combat: "Kestrel: Lockdown broken. Extraction skiff is hot on the berth. Move.",
   complete: "Kestrel: Clean lift. The dock can die behind us now.",
-  failed: "Kestrel: Runner down. Reset the insertion and take the route cleaner.",
+  failed: "Kestrel: Runner down. Vitals hit zero. The session is lost.",
+  recovery: "Kestrel: The seed is aboard, but the dock relays are still selling the lane. Break both relays and the ceiling gun.",
+  relaysDown: "Kestrel: Relays are dark and the gun is down. Board the skiff.",
+  lane: "Kestrel: Skiff is hot. Fly the east lane and clear the storm gate. Hull zero loses the session.",
+  laneClear: "Kestrel: Gate is clear. The evacuation lane is open.",
 };

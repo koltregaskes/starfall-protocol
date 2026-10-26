@@ -7,10 +7,17 @@ import type {
   SkillDefinition,
   SkillId,
 } from "../game/content/progression";
+import { CAMPAIGN_ORDER, WHOLE_GAME } from "../game/content/campaign";
 import { LOADOUTS, OPERATIONS, SKILLS } from "../game/content/progression";
 import { canUnlockSkill, type CareerProfile, type ConsequenceReport } from "../game/progression/ProfileStore";
 import { getRunAssessment } from "../game/progression/runAssessment";
 import type { SimulationState } from "../game/simulation/types";
+
+export type RunResolution = {
+  kind: "mission-win" | "game-win" | "loss";
+  missionName: string;
+  nextName: string | null;
+};
 
 type SafehousePanel = "Continue" | "Operations" | "Loadout" | "Intel" | "Options";
 
@@ -104,9 +111,23 @@ export class Hud {
 
   private readonly summaryBest: HTMLParagraphElement;
 
+  private readonly deployButton: HTMLButtonElement;
+
+  private readonly campaignProgress: HTMLParagraphElement;
+
+  private readonly stepHost: HTMLDivElement;
+
+  private readonly resultAction: HTMLButtonElement;
+
+  private resolution: RunResolution | null = null;
+
   private readonly objective: HTMLHeadingElement;
 
   private readonly objectiveDetail: HTMLParagraphElement;
+
+  private readonly rulesLine: HTMLParagraphElement;
+
+  private readonly vitalLabel: HTMLSpanElement;
 
   private readonly location: HTMLParagraphElement;
 
@@ -129,8 +150,6 @@ export class Hud {
   private readonly exposureFill: HTMLDivElement;
 
   private readonly intelDrawer: HTMLDivElement;
-
-  private readonly intelSteps: HTMLElement[];
 
   private readonly intelLog: HTMLParagraphElement;
 
@@ -163,11 +182,12 @@ export class Hud {
             <p class="hud__eyebrow">Current operation</p>
             <h2 class="hud__title"></h2>
             <p class="hud__detail"></p>
+            <p class="hud__rules"></p>
           </div>
 
           <div class="hud__status">
             <div class="status-pill">
-              <span class="status-pill__label">Vitals</span>
+              <span class="status-pill__label js-vital-label">Vitals</span>
               <strong><span class="health-value">100</span>%</strong>
               <div class="status-pill__meter"><div class="status-pill__fill health-fill"></div></div>
             </div>
@@ -197,18 +217,11 @@ export class Hud {
 
         <aside class="intel-drawer">
           <p class="drawer__eyebrow">Live dossier</p>
-          <h3>Operation glassline</h3>
+          <h3>Aurelion Gate</h3>
           <p class="drawer__copy">
-            Recover the navigation seed before the Black Glass Combine reroutes the civilian evacuation lane.
+            Open the evacuation lane. You win the game by clearing Cinder Vector. You lose the session if vitals or hull hit zero.
           </p>
-          <div class="drawer__sequence" aria-label="Mission steps">
-            <div class="drawer__step" data-step="insert"><span>00</span><strong>Stabilize insertion</strong></div>
-            <div class="drawer__step" data-step="survey"><span>01</span><strong>Sweep the overlook</strong></div>
-            <div class="drawer__step" data-step="hack"><span>02</span><strong>Breach the archive door</strong></div>
-            <div class="drawer__step" data-step="collect"><span>03</span><strong>Secure the navigation seed</strong></div>
-            <div class="drawer__step" data-step="combat"><span>04</span><strong>Break the lockdown</strong></div>
-            <div class="drawer__step" data-step="extract"><span>05</span><strong>Board the extraction skiff</strong></div>
-          </div>
+          <div class="drawer__sequence js-steps" aria-label="Mission steps"></div>
           <div class="drawer__controls">
             <span>WASD move</span>
             <span>Shift sprint</span>
@@ -225,11 +238,16 @@ export class Hud {
             <section class="overlay__brand">
               <p class="overlay__eyebrow">Safehouse staging board</p>
               <p class="overlay__logo">Starfall Protocol</p>
-              <h1>Build the operator loop behind the breach, not just the breach itself.</h1>
+              <h1>Open the evacuation lane.</h1>
               <p class="overlay__lede">
-                Phase 2 starts here: select the contract profile, tune the kit, review the career log, and redeploy
-                without dropping out of the world. The dock remains the proving ground while the wider game grows around it.
+                Finish three missions in order. Ghost Signal steals the seed, Storm Window breaks the dock relays, and Cinder Vector flies the skiff out.
               </p>
+              <ul class="session-rules" data-session-rules>
+                <li><span>Goal</span><p data-rule="goal">${WHOLE_GAME.goal}</p></li>
+                <li><span>Win</span><p data-rule="win">${WHOLE_GAME.win}</p></li>
+                <li><span>Loss</span><p data-rule="loss">${WHOLE_GAME.loss}</p></li>
+              </ul>
+              <p class="briefing-copy js-campaign-progress"></p>
               <div class="briefing-rail">
                 <div class="briefing-rail__item">
                   <span class="briefing-label">Current contract</span>
@@ -296,7 +314,7 @@ export class Hud {
               <div class="result-metric"><span>Alarms</span><strong class="js-metric-alarms"></strong></div>
             </div>
             <div class="overlay__menu overlay__menu--stack">
-              <button class="button button--primary js-restart" type="button">Redeploy</button>
+              <button class="button button--primary js-restart js-result-action" type="button">Redeploy</button>
               <button class="button button--ghost js-safehouse" type="button">Safehouse</button>
             </div>
           </div>
@@ -315,8 +333,13 @@ export class Hud {
     this.summaryLoadout = root.querySelector(".js-summary-loadout") as HTMLParagraphElement;
     this.summaryCareer = root.querySelector(".js-summary-career") as HTMLParagraphElement;
     this.summaryBest = root.querySelector(".js-summary-best") as HTMLParagraphElement;
+    this.deployButton = root.querySelector(".js-deploy") as HTMLButtonElement;
+    this.campaignProgress = root.querySelector(".js-campaign-progress") as HTMLParagraphElement;
+    this.stepHost = root.querySelector(".js-steps") as HTMLDivElement;
     this.objective = root.querySelector(".hud__title") as HTMLHeadingElement;
     this.objectiveDetail = root.querySelector(".hud__detail") as HTMLParagraphElement;
+    this.rulesLine = root.querySelector(".hud__rules") as HTMLParagraphElement;
+    this.vitalLabel = root.querySelector(".js-vital-label") as HTMLSpanElement;
     this.location = root.querySelector(".hud__location") as HTMLParagraphElement;
     this.callout = root.querySelector(".hud__callout-text") as HTMLParagraphElement;
     this.tutorial = root.querySelector(".hud__tutorial-text") as HTMLParagraphElement;
@@ -328,13 +351,13 @@ export class Hud {
     this.exposureValue = root.querySelector(".exposure-value") as HTMLSpanElement;
     this.exposureFill = root.querySelector(".exposure-fill") as HTMLDivElement;
     this.intelDrawer = root.querySelector(".intel-drawer") as HTMLDivElement;
-    this.intelSteps = Array.from(root.querySelectorAll(".drawer__step"));
     this.intelLog = root.querySelector(".drawer__log") as HTMLParagraphElement;
     this.statusBadge = root.querySelector(".status-badge") as HTMLSpanElement;
     this.pauseOverlay = root.querySelector(".overlay--pause") as HTMLDivElement;
     this.resultOverlay = root.querySelector(".overlay--result") as HTMLDivElement;
     this.resultTitle = root.querySelector(".js-result-title") as HTMLHeadingElement;
     this.resultBody = root.querySelector(".js-result-body") as HTMLParagraphElement;
+    this.resultAction = root.querySelector(".js-result-action") as HTMLButtonElement;
     this.resultMetrics = root.querySelector(".result-metrics") as HTMLDivElement;
 
     this.panelButtons.forEach((button) => {
@@ -385,7 +408,23 @@ export class Hud {
     this.summaryLoadout.textContent = `${state.loadout.name} / ${state.loadout.role}`;
     this.summaryCareer.textContent = `${state.profile.seedsRecovered} recovered / ${state.profile.totalRuns} runs`;
     this.summaryBest.textContent = state.profile.bestAssessment ?? "No clean exit yet";
+    this.deployButton.textContent = this.deployLabel();
+    this.campaignProgress.textContent = state.profile.campaignCleared
+      ? "Campaign complete. The evacuation lane is open. Deploy plays the three missions again."
+      : `Next mission ${state.profile.campaignStep + 1} of 3: ${state.operation.name}.`;
     this.renderActivePanel();
+  }
+
+  setResolution(resolution: RunResolution | null) {
+    this.resolution = resolution;
+  }
+
+  private deployLabel(): string {
+    if (this.briefingState?.profile.campaignCleared) {
+      return "Play the campaign again";
+    }
+
+    return `Deploy ${this.briefingState?.operation.name ?? "Ghost Signal"}`;
   }
 
   hideBriefing() {
@@ -413,6 +452,8 @@ export class Hud {
 
     this.objective.textContent = state.ui.objective;
     this.objectiveDetail.textContent = state.ui.objectiveDetail;
+    this.rulesLine.textContent = `${WHOLE_GAME.win} ${WHOLE_GAME.loss}`;
+    this.vitalLabel.textContent = state.missionKind === "escape" ? "Hull" : "Vitals";
     this.location.textContent = state.ui.location;
     this.callout.textContent = state.ui.callout || "Hold the route clean and keep the dock quiet.";
     this.tutorial.textContent = state.ui.tutorial;
@@ -438,9 +479,23 @@ export class Hud {
       this.promptFill.style.width = "0%";
     }
 
+    if (state.phase !== "complete" && state.phase !== "failed") {
+      this.resolution = null;
+    }
+
     this.showPause(state.phase === "paused");
 
-    if (state.phase === "complete") {
+    if (state.phase === "complete" && this.resolution?.kind === "game-win") {
+      this.resultOverlay.hidden = false;
+      this.resultTitle.textContent = "Evacuation lane open";
+      this.resultBody.textContent = `${this.resolution.missionName} cleared the storm gate. You won Starfall Protocol. ${WHOLE_GAME.win}`;
+      this.populateMetrics(state, true);
+    } else if (state.phase === "complete" && this.resolution?.kind === "mission-win") {
+      this.resultOverlay.hidden = false;
+      this.resultTitle.textContent = `${this.resolution.missionName} secured`;
+      this.resultBody.textContent = `${this.resolution.missionName} is clear. You have not won the game yet. Continue into ${this.resolution.nextName}. ${WHOLE_GAME.loss}`;
+      this.populateMetrics(state, true);
+    } else if (state.phase === "complete") {
       const assessment = getRunAssessment(state.stats, true);
       const latestConsequence = this.briefingState?.consequenceReports[0];
       const aftermath = this.buildAftermathLine(state, true);
@@ -456,16 +511,29 @@ export class Hud {
       const assessment = getRunAssessment(state.stats, false);
       const latestConsequence = this.briefingState?.consequenceReports[0];
       const aftermath = this.buildAftermathLine(state, false);
+      const cause = state.missionKind === "escape" ? "The skiff hull hit zero." : "Your vitals hit zero.";
       this.resultOverlay.hidden = false;
-      this.resultTitle.textContent = "Insertion collapsed";
-      this.resultBody.textContent = this.briefingState
-        ? `${this.briefingState.operation.name} broke as ${assessment.toLowerCase()} under the ${this.briefingState.loadout.name} package. ${
-            latestConsequence ? `${latestConsequence.title}: ${latestConsequence.body}` : "Drop to the safehouse, retune the run, and go again cleaner."
-          } ${aftermath}`
-        : `The dock burned the window before the route cleared. ${aftermath}`;
+      this.resultTitle.textContent = "Session lost";
+      this.resultBody.textContent = this.resolution?.kind === "loss"
+        ? `${cause} ${this.resolution.missionName} ended before the evacuation lane opened. ${WHOLE_GAME.loss}`
+        : this.briefingState
+          ? `${this.briefingState.operation.name} broke as ${assessment.toLowerCase()} under the ${this.briefingState.loadout.name} package. ${
+              latestConsequence ? `${latestConsequence.title}: ${latestConsequence.body}` : "Drop to the safehouse, retune the run, and go again cleaner."
+            } ${aftermath}`
+          : `${cause} ${aftermath}`;
       this.populateMetrics(state, false);
     } else {
       this.resultOverlay.hidden = true;
+    }
+
+    if (this.resolution?.kind === "game-win") {
+      this.resultAction.textContent = "Play the campaign again";
+    } else if (this.resolution?.kind === "mission-win") {
+      this.resultAction.textContent = "Continue campaign";
+    } else if (state.phase === "failed") {
+      this.resultAction.textContent = "Retry mission";
+    } else {
+      this.resultAction.textContent = "Redeploy";
     }
   }
 
@@ -548,24 +616,28 @@ export class Hud {
         <div class="briefing-summary"><span>Fastest exit</span><strong>${escapeHtml(formatDuration(profile.bestTimeSeconds))}</strong></div>
       </div>
       ${this.renderCampaignPressureBlock(campaignPressure)}
-      <button class="button button--primary js-inline-deploy" type="button">Deploy ${escapeHtml(operation.name)}</button>
+      <button class="button button--primary js-inline-deploy" type="button">${this.deployLabel()}</button>
     `;
   }
 
   private renderOperationsPanel(): string {
     const selectedId = this.briefingState?.operation.id;
+    const step = this.briefingState?.profile.campaignStep ?? 0;
+    const cleared = this.briefingState?.profile.campaignCleared ?? false;
     return `
       <div class="briefing-grid">
-        ${OPERATIONS.map(
-          (operation) => `
-            <button class="briefing-option${operation.id === selectedId ? " is-selected" : ""}" data-operation-id="${operation.id}" type="button">
-              <p class="briefing-card__eyebrow">${escapeHtml(operation.risk)} risk</p>
+        ${OPERATIONS.map((operation, index) => {
+          const locked = !cleared && index > step;
+          const current = CAMPAIGN_ORDER[index] === operation.id && index === step && !cleared;
+          return `
+            <button class="briefing-option${operation.id === selectedId ? " is-selected" : ""}" data-operation-id="${locked ? "" : operation.id}" type="button"${locked ? " disabled" : ""}>
+              <p class="briefing-card__eyebrow">${escapeHtml(operation.risk)} risk${current ? " / next" : ""}</p>
               <h3>${escapeHtml(operation.name)}</h3>
               <p>${escapeHtml(operation.summary)}</p>
-              <div class="briefing-tags">${operation.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
+              <div class="briefing-tags">${operation.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}${locked ? "<span>Locked</span>" : ""}</div>
             </button>
-          `,
-        ).join("")}
+          `;
+        }).join("")}
       </div>
     `;
   }
@@ -677,7 +749,7 @@ export class Hud {
       <div class="briefing-section">
         <p class="briefing-card__eyebrow">Controls</p>
         <div class="briefing-tags">
-          <span>WASD move</span>
+          <span>WASD move or fly</span>
           <span>Shift sprint</span>
           <span>Q scan</span>
           <span>E interact</span>
@@ -687,10 +759,9 @@ export class Hud {
         </div>
       </div>
       <div class="briefing-section">
-        <p class="briefing-card__eyebrow">Phase 2 lane</p>
+        <p class="briefing-card__eyebrow">Campaign</p>
         <p class="briefing-copy">
-          The safehouse board, selectable contracts, selectable loadouts, persistent career log, operator lattice, and faction-pressure layer now live around the dock slice.
-          This is the first real bridge from a one-off demo toward a wider mission-board structure.
+          Starfall Protocol is these three missions and no further ones. Finish them in order from this board. Clearing Cinder Vector wins the game. Hitting zero vitals, or zero skiff hull on the last mission, loses the session.
         </p>
       </div>
       <div class="briefing-section">
@@ -775,6 +846,33 @@ export class Hud {
   }
 
   private syncObjectiveSteps(state: SimulationState) {
+    if (state.missionKind === "recovery") {
+      const westDown = state.relays.find((relay) => relay.id === "relay-west")?.destroyed === true;
+      const eastDown = state.relays.find((relay) => relay.id === "relay-east")?.destroyed === true;
+      const active = state.objective === "extract" ? "extract" : !westDown ? "relay-west" : !eastDown ? "relay-east" : "turret";
+      this.renderSteps(
+        [
+          ["relay-west", "Silence the west relay", westDown],
+          ["relay-east", "Silence the east relay", eastDown],
+          ["turret", "Drop the ceiling gun", state.turret.destroyed],
+          ["extract", "Board the skiff", state.phase === "complete"],
+        ],
+        state.phase === "briefing" ? null : active,
+      );
+      return;
+    }
+
+    if (state.missionKind === "escape") {
+      this.renderSteps(
+        [
+          ["lane", "Fly the storm lane", false],
+          ["extract", "Clear the storm gate", state.phase === "complete"],
+        ],
+        state.phase === "briefing" ? null : state.phase === "complete" ? "extract" : "lane",
+      );
+      return;
+    }
+
     const completed = new Set<string>();
     if (state.insertionComplete) completed.add("insert");
     if (state.scanComplete) completed.add("survey");
@@ -783,15 +881,29 @@ export class Hud {
     if (state.combatComplete) completed.add("combat");
     if (state.phase === "complete") completed.add("extract");
 
-    this.intelSteps.forEach((step) => {
-      const id = step.dataset.step;
-      if (!id) {
-        return;
-      }
+    this.renderSteps(
+      [
+        ["insert", "Stabilize insertion", completed.has("insert")],
+        ["survey", "Sweep the overlook", completed.has("survey")],
+        ["hack", "Breach the archive door", completed.has("hack")],
+        ["collect", "Secure the navigation seed", completed.has("collect")],
+        ["combat", "Break the lockdown", completed.has("combat")],
+        ["extract", "Board the extraction skiff", completed.has("extract")],
+      ],
+      state.phase === "briefing" ? null : state.objective,
+    );
+  }
 
-      step.classList.toggle("is-active", state.phase !== "briefing" && state.objective === id);
-      step.classList.toggle("is-complete", completed.has(id));
-    });
+  private renderSteps(steps: Array<[string, string, boolean]>, activeId: string | null) {
+    this.stepHost.innerHTML = steps
+      .map(
+        ([id, label, complete], index) => `
+          <div class="drawer__step${complete ? " is-complete" : ""}${activeId === id ? " is-active" : ""}" data-step="${id}">
+            <span>${String(index).padStart(2, "0")}</span><strong>${label}</strong>
+          </div>
+        `,
+      )
+      .join("");
   }
 
   private buildAftermathLine(state: SimulationState, success: boolean): string {
