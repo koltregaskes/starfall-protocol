@@ -112,7 +112,7 @@ export const OPERATIONS: OperationDefinition[] = [
     name: "Ghost Signal",
     risk: "Controlled",
     summary:
-      "Balanced retrieval contract. Patrol rhythm stays readable, the breach window is stable, and the dock behaves like the clean benchmark run.",
+      "Mission 1 of the campaign. Slip the dock, scan the overlook, breach the archive, take the navigation seed, break the lockdown, and extract on foot.",
     modifiers: {
       extraGuard: false,
       guardSpeedMultiplier: 1,
@@ -122,14 +122,14 @@ export const OPERATIONS: OperationDefinition[] = [
       turretHealthBonus: 0,
       enemyFireRateMultiplier: 1,
     },
-    tags: ["Baseline patrol lattice", "Balanced lockdown", "Best for route learning"],
+    tags: ["Stealth insertion", "Archive breach", "Seed extraction"],
   },
   {
     id: "storm-window",
     name: "Storm Window",
     risk: "Elevated",
     summary:
-      "A stormfront is scrubbing civilian traffic and the dock is running hot. Patrols move harder, suspicion spikes faster, and another sentinel is roaming the hangar spine.",
+      "Mission 2. The seed is already aboard and the dock is loud. Destroy both relays and the ceiling gun, then extract under fire.",
     modifiers: {
       extraGuard: true,
       guardSpeedMultiplier: 1.12,
@@ -139,14 +139,14 @@ export const OPERATIONS: OperationDefinition[] = [
       turretHealthBonus: 0,
       enemyFireRateMultiplier: 0.92,
     },
-    tags: ["Extra sentinel", "Sharper stealth pressure", "Faster hostile fire"],
+    tags: ["Combat recovery", "Two relays", "Ceiling gun"],
   },
   {
     id: "cinder-vector",
     name: "Cinder Vector",
     risk: "Severe",
     summary:
-      "Black Glass is already hunting the leak. The relay drone is hardened, the turret comes up heavier, and the exit expects a louder break than a silent drift.",
+      "Mission 3, and the end of the game. Fly the skiff down the east lane and clear the storm gate. The campaign is won only when that gate opens.",
     modifiers: {
       extraGuard: false,
       guardSpeedMultiplier: 1.06,
@@ -156,7 +156,7 @@ export const OPERATIONS: OperationDefinition[] = [
       turretHealthBonus: 2,
       enemyFireRateMultiplier: 0.84,
     },
-    tags: ["Reinforced lockdown", "Tougher combat finish", "High extraction pressure"],
+    tags: ["Skiff escape", "Storm gate", "Campaign ending"],
   },
 ];
 

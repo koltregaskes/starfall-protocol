@@ -1,3 +1,4 @@
+import { ESCAPE_GATE, ESCAPE_START, LANE_GUN_RANGE, LANE_GUNS, RECOVERY_RELAYS, RECOVERY_START, missionKindFor } from "../content/campaign";
 import { COMMS_LINES, DOOR_OBSTACLE, GUARD_ROUTES, MISSION_POINTS, STATIC_OBSTACLES, WORLD_BOUNDS } from "../content/mission";
 import type { MissionConfig } from "../content/progression";
 import type {
@@ -85,6 +86,17 @@ function createGuards(config: MissionConfig): GuardState[] {
   return guards;
 }
 
+function createLaneGun(position: Vec2, attackCooldown: number): TurretState {
+  return {
+    position: clonePoint(position),
+    health: 4,
+    active: true,
+    destroyed: false,
+    attackCooldown,
+    facing: 0,
+  };
+}
+
 function createTurret(config: MissionConfig): TurretState {
   return {
     position: clonePoint(MISSION_POINTS.turret),
@@ -101,6 +113,7 @@ function createState(config: MissionConfig): SimulationState {
     phase: "briefing",
     elapsed: 0,
     objective: "insert",
+    missionKind: missionKindFor(config.operation.id),
     player: {
       position: clonePoint(MISSION_POINTS.playerStart),
       facing: 1.82,
@@ -114,6 +127,9 @@ function createState(config: MissionConfig): SimulationState {
     },
     guards: createGuards(config),
     turret: createTurret(config),
+    relays: [],
+    laneGuns: [],
+    gate: clonePoint(ESCAPE_GATE),
     projectiles: [],
     ui: createUiState(),
     alert: false,
@@ -202,13 +218,23 @@ function onSegment(a: Vec2, b: Vec2, c: Vec2): boolean {
   );
 }
 
+function turn(value: number): number {
+  if (value > 0) {
+    return 1;
+  }
+  if (value < 0) {
+    return -1;
+  }
+  return 0;
+}
+
 function segmentsIntersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2): boolean {
   const o1 = orientation(a1, a2, b1);
   const o2 = orientation(a1, a2, b2);
   const o3 = orientation(b1, b2, a1);
   const o4 = orientation(b1, b2, a2);
 
-  if (o1 !== o2 && o3 !== o4) {
+  if (turn(o1) !== turn(o2) && turn(o3) !== turn(o4)) {
     return true;
   }
 
@@ -258,9 +284,72 @@ export class GameSimulation {
   }
 
   startMission() {
+    if (this.state.missionKind === "recovery") {
+      this.beginRecovery();
+      return;
+    }
+
+    if (this.state.missionKind === "escape") {
+      this.beginEscape();
+      return;
+    }
+
     this.state.phase = "insertion";
     this.pushEvent({ type: "sfx", cue: "deploy" });
     this.setCallout(COMMS_LINES.deploy, 7);
+  }
+
+  private beginRecovery() {
+    this.state.phase = "mission";
+    this.state.objective = "combat";
+    this.state.insertionComplete = true;
+    this.state.scanComplete = true;
+    this.state.hackComplete = true;
+    this.state.coreCollected = true;
+    this.state.doorOpen = true;
+    this.state.alert = true;
+    this.state.ui.alarm = true;
+    this.state.combatComplete = false;
+    this.state.extractionReady = false;
+    this.state.turret.active = true;
+    this.state.turret.destroyed = false;
+    this.state.player.position = clonePoint(RECOVERY_START);
+    this.state.relays = RECOVERY_RELAYS.map((relay) => ({
+      id: relay.id,
+      position: clonePoint(relay.position),
+      health: 3,
+      destroyed: false,
+    }));
+    for (const guard of this.state.guards) {
+      guard.attackCooldown = 1.6;
+    }
+    this.pushEvent({ type: "sfx", cue: "alarm" });
+    this.setCallout(COMMS_LINES.recovery, 7);
+    this.updateUiState();
+  }
+
+  private beginEscape() {
+    this.state.phase = "mission";
+    this.state.objective = "lane";
+    this.state.insertionComplete = true;
+    this.state.scanComplete = true;
+    this.state.hackComplete = true;
+    this.state.coreCollected = true;
+    this.state.doorOpen = true;
+    this.state.alert = true;
+    this.state.ui.alarm = true;
+    this.state.extractionReady = false;
+    this.state.player.position = clonePoint(ESCAPE_START);
+    this.state.gate = clonePoint(ESCAPE_GATE);
+    this.state.turret.active = false;
+    this.state.laneGuns = LANE_GUNS.map((position, index) => createLaneGun(position, 0.8 + index * 0.25));
+    for (const guard of this.state.guards) {
+      guard.active = false;
+      guard.alert = false;
+    }
+    this.pushEvent({ type: "sfx", cue: "deploy" });
+    this.setCallout(COMMS_LINES.lane, 7);
+    this.updateUiState();
   }
 
   seedReviewOutcome(outcome: "complete" | "failed" | "insert" | "walkthrough") {
@@ -475,7 +564,8 @@ export class GameSimulation {
     }
 
     const move = normalize(rawMove);
-    const speed = (input.sprint ? PLAYER_SPRINT_SPEED : PLAYER_SPEED) * this.config.playerModifiers.sprintMultiplier;
+    const cruise = this.state.missionKind === "escape" ? 12.4 : input.sprint ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
+    const speed = cruise * this.config.playerModifiers.sprintMultiplier;
     const delta = { x: move.x * speed * dt, z: move.z * speed * dt };
     this.state.player.position = this.moveActor(this.state.player.position, this.state.player.radius, delta);
     this.state.player.facing = lerpAngle(this.state.player.facing, angleTo({ x: 0, z: 0 }, move), 0.28);
@@ -483,6 +573,23 @@ export class GameSimulation {
 
   private updateInteractions(dt: number, input: InputSnapshot) {
     const player = this.state.player.position;
+    if (this.state.missionKind === "escape") {
+      this.state.interactionTarget = null;
+      this.state.interactionProgress = 0;
+      if (distance(player, this.state.gate) < 2.6) {
+        this.state.phase = "complete";
+        this.state.objective = "extract";
+        this.state.ui.alarm = false;
+        this.state.ui.prompt = null;
+        this.pushEvent({ type: "sfx", cue: "success" });
+        this.setCallout(COMMS_LINES.laneClear, 7.5);
+        return;
+      }
+
+      this.state.ui.prompt = { text: "Fly the skiff into the blue gate", progress: 0 };
+      return;
+    }
+
     const previousTarget = this.state.interactionTarget;
     let target: string | null = null;
     let prompt = "";
@@ -705,15 +812,22 @@ export class GameSimulation {
   }
 
   private updateTurret(dt: number) {
-    const turret = this.state.turret;
+    const guns = this.state.missionKind === "escape" ? this.state.laneGuns : [this.state.turret];
+    for (const turret of guns) {
+      this.updateGun(turret, dt);
+    }
+  }
+
+  private updateGun(turret: TurretState, dt: number) {
     if (!turret.active || turret.destroyed) {
       return;
     }
 
     turret.attackCooldown = Math.max(0, turret.attackCooldown - dt);
     turret.facing = lerpAngle(turret.facing, angleTo(turret.position, this.state.player.position), 0.18);
+    const range = this.state.missionKind === "escape" ? LANE_GUN_RANGE : 14.5;
     const distanceToPlayer = distance(turret.position, this.state.player.position);
-    if (distanceToPlayer < 14.5 && turret.attackCooldown <= 0 && this.hasLineOfSight(turret.position, this.state.player.position)) {
+    if (distanceToPlayer < range && turret.attackCooldown <= 0 && this.hasLineOfSight(turret.position, this.state.player.position)) {
       turret.attackCooldown =
         0.8 * this.config.operation.modifiers.enemyFireRateMultiplier * this.config.campaignPressure.enemyFireRateMultiplier;
       this.spawnProjectile("enemy", turret.position, this.state.player.position, 1.8);
@@ -751,7 +865,7 @@ export class GameSimulation {
       }
     }
 
-    if (this.state.turret.active && !this.state.turret.destroyed) {
+    if (this.state.turret.active && !this.state.turret.destroyed && this.state.missionKind !== "escape") {
       const toTurret = {
         x: this.state.turret.position.x - this.state.player.position.x,
         z: this.state.turret.position.z - this.state.player.position.z,
@@ -760,7 +874,44 @@ export class GameSimulation {
       const alignment = aimDirection.x * toTurretNormal.x + aimDirection.z * toTurretNormal.z;
       const range = length2d(toTurret);
       if (alignment > 0.1 && range < bestDistance && this.hasLineOfSight(this.state.player.position, this.state.turret.position)) {
+        bestDistance = range;
         targetPoint = clonePoint(this.state.turret.position);
+      }
+    }
+
+    for (const gun of this.state.laneGuns) {
+      if (!gun.active || gun.destroyed) {
+        continue;
+      }
+
+      const toGun = {
+        x: gun.position.x - this.state.player.position.x,
+        z: gun.position.z - this.state.player.position.z,
+      };
+      const toGunNormal = normalize(toGun);
+      const alignment = aimDirection.x * toGunNormal.x + aimDirection.z * toGunNormal.z;
+      const range = length2d(toGun);
+      if (alignment > 0.1 && range < bestDistance && this.hasLineOfSight(this.state.player.position, gun.position)) {
+        bestDistance = range;
+        targetPoint = clonePoint(gun.position);
+      }
+    }
+
+    for (const relay of this.state.relays) {
+      if (relay.destroyed) {
+        continue;
+      }
+
+      const toRelay = {
+        x: relay.position.x - this.state.player.position.x,
+        z: relay.position.z - this.state.player.position.z,
+      };
+      const toRelayNormal = normalize(toRelay);
+      const alignment = aimDirection.x * toRelayNormal.x + aimDirection.z * toRelayNormal.z;
+      const range = length2d(toRelay);
+      if (alignment > 0.1 && range < bestDistance && this.hasLineOfSight(this.state.player.position, relay.position)) {
+        bestDistance = range;
+        targetPoint = clonePoint(relay.position);
       }
     }
 
@@ -842,6 +993,44 @@ export class GameSimulation {
           this.pushEvent({ type: "sfx", cue: "impact" });
           continue;
         }
+
+        for (const gun of this.state.laneGuns) {
+          if (!gun.active || gun.destroyed || distance(projectile.position, gun.position) >= 1.15) {
+            continue;
+          }
+
+          gun.health -= this.config.playerModifiers.damagePerShot;
+          if (gun.health <= 0) {
+            gun.destroyed = true;
+            this.state.stats.enemiesNeutralized += 1;
+          }
+          this.pushEvent({ type: "sfx", cue: "impact" });
+          hit = true;
+          break;
+        }
+
+        if (hit) {
+          continue;
+        }
+
+        for (const relay of this.state.relays) {
+          if (relay.destroyed || distance(projectile.position, relay.position) >= 1.25) {
+            continue;
+          }
+
+          relay.health -= this.config.playerModifiers.damagePerShot;
+          if (relay.health <= 0) {
+            relay.destroyed = true;
+            this.state.stats.enemiesNeutralized += 1;
+          }
+          this.pushEvent({ type: "sfx", cue: "impact" });
+          hit = true;
+          break;
+        }
+
+        if (hit) {
+          continue;
+        }
       }
 
       nextProjectiles.push(projectile);
@@ -852,6 +1041,23 @@ export class GameSimulation {
 
   private updateObjectiveState() {
     if (this.state.phase === "failed" || this.state.phase === "complete") {
+      return;
+    }
+
+    if (this.state.missionKind === "escape") {
+      return;
+    }
+
+    if (this.state.missionKind === "recovery") {
+      const relaysDown = this.state.relays.length > 0 && this.state.relays.every((relay) => relay.destroyed);
+      if (relaysDown && this.state.turret.destroyed && !this.state.extractionReady) {
+        this.state.combatComplete = true;
+        this.state.extractionReady = true;
+        this.state.objective = "extract";
+        this.state.ui.alarm = false;
+        this.pushEvent({ type: "sfx", cue: "success" });
+        this.setCallout(COMMS_LINES.relaysDown, 6.2);
+      }
       return;
     }
 
@@ -1013,12 +1219,25 @@ export class GameSimulation {
         this.state.ui.objectiveDetail = "Slip into the archive chamber and pull the core before the dock closes.";
         break;
       case "combat":
+        if (this.state.missionKind === "recovery") {
+          const relaysLeft = this.state.relays.filter((relay) => !relay.destroyed).length;
+          this.state.ui.objective = relaysLeft > 0 ? "Destroy the relays" : "Drop the ceiling gun";
+          this.state.ui.objectiveDetail =
+            relaysLeft > 0
+              ? "Shoot the marked relays, then the ceiling gun. Vitals at zero loses the session."
+              : "The relays are dark. Finish the ceiling gun, then extract. Vitals at zero loses the session.";
+          break;
+        }
         this.state.ui.objective = "Break the lockdown";
         this.state.ui.objectiveDetail = "Cut down the relay drone and the ceiling turret to reopen extraction.";
         break;
       case "extract":
         this.state.ui.objective = "Extract";
         this.state.ui.objectiveDetail = "Return to the skiff berth and hold E to leave with the seed.";
+        break;
+      case "lane":
+        this.state.ui.objective = "Clear the storm gate";
+        this.state.ui.objectiveDetail = "Fly the skiff into the blue gate. Hull zero loses the session.";
         break;
     }
 
@@ -1037,10 +1256,20 @@ export class GameSimulation {
 
   private resolveTutorial(): string {
     if (this.state.phase === "failed") {
-      return "Runner down. Restart the insertion and keep the cargo stacks between you and the patrol beams.";
+      return this.state.missionKind === "escape"
+        ? "Hull hit zero. This session is lost. Retry Cinder Vector from the safehouse."
+        : "Vitals hit zero. This session is lost. Retry the mission from the safehouse.";
     }
     if (this.state.phase === "complete") {
-      return "Demo clear. Replay to test a cleaner infiltration line or a louder breach.";
+      return this.state.missionKind === "escape"
+        ? "The storm gate is open. That clears the campaign."
+        : "Mission clear. The campaign is not over until Cinder Vector clears the storm gate.";
+    }
+    if (this.state.missionKind === "escape") {
+      return "WASD flies the skiff. Reach the blue gate. Hull zero loses the session, and the game is won only when this gate opens.";
+    }
+    if (this.state.missionKind === "recovery") {
+      return "F fires. Destroy both relays and the ceiling gun, then hold E at the skiff. Vitals at zero loses the session.";
     }
     if (this.state.objective === "insert") {
       return "Hold E on the skiff ring to sync insertion. Once the line is stable, move on the overlook.";
@@ -1062,7 +1291,7 @@ export class GameSimulation {
         return "The safehouse is running thin on cover. Touch the terminal cleanly and do not let the dock build a repeat signature.";
       }
       return this.config.operation.id === "storm-window"
-        ? "Storm Window runs hotter than the baseline slice. Stay outside the vision cones or the extra sentinel will collapse the hangar fast."
+        ? "Storm Window is the combat recovery. Stay moving, break the relays, and do not let the extra sentinel pin you in the open."
         : "Stay outside the orange vision cones unless you want to trigger the whole dock.";
     }
     if (this.state.objective === "collect") {

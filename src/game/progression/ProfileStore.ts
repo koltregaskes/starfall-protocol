@@ -6,6 +6,7 @@ import {
   type OperationId,
   type SkillId,
 } from "../content/progression";
+import { CAMPAIGN_ORDER } from "../content/campaign";
 
 const STORAGE_KEYS = ["starfall-protocol-career-v3", "starfall-protocol-career-v2"] as const;
 
@@ -48,6 +49,8 @@ export type CareerProfile = {
   consequenceReports: ConsequenceReport[];
   operationRecords: Record<OperationId, CareerRecord>;
   loadoutRecords: Record<LoadoutId, CareerRecord>;
+  campaignStep: number;
+  campaignCleared: boolean;
 };
 
 function createRecord(): CareerRecord {
@@ -111,6 +114,8 @@ export function createDefaultProfile(): CareerProfile {
       "breach-rig": createRecord(),
       "vanguard-shell": createRecord(),
     },
+    campaignStep: 0,
+    campaignCleared: false,
   };
 }
 
@@ -208,6 +213,8 @@ export function createReviewProfile(): CareerProfile {
         bestTimeSeconds: 91.8,
       },
     },
+    campaignStep: 0,
+    campaignCleared: false,
   };
 }
 
@@ -237,14 +244,19 @@ export function loadCareerProfile(): CareerProfile {
       return fallback;
     }
 
+    const campaignStep = parsed.campaignStep === 1 || parsed.campaignStep === 2 ? parsed.campaignStep : 0;
+    const campaignCleared = parsed.campaignCleared === true;
     const nextProfile: CareerProfile = {
       ...fallback,
       ...parsed,
       version: 3,
-      selectedOperationId:
-        parsed.selectedOperationId === "storm-window" || parsed.selectedOperationId === "cinder-vector"
+      campaignStep,
+      campaignCleared,
+      selectedOperationId: campaignCleared
+        ? parsed.selectedOperationId === "storm-window" || parsed.selectedOperationId === "cinder-vector"
           ? parsed.selectedOperationId
-          : "ghost-signal",
+          : "ghost-signal"
+        : (CAMPAIGN_ORDER[campaignStep] ?? "ghost-signal"),
       selectedLoadoutId:
         parsed.selectedLoadoutId === "ghostweave" ||
         parsed.selectedLoadoutId === "vanguard-shell" ||

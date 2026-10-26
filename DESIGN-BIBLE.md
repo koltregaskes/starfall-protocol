@@ -1,152 +1,40 @@
 # Starfall Protocol Design Bible
 
-`Starfall Protocol` should become a third-person cyberpunk action game built for desktop, not a browser toy. The current site is only a mood signal. The real target is a premium installable game with traversal, combat, stealth, hacking, and strong mission structure.
+Starfall Protocol is a third-person browser game about opening one civilian evacuation lane. The whole game is the Aurelion Gate campaign: three missions on the orbital dock, played in order, in this build. There is no later campaign, district map, or installable game hiding behind this one.
 
-## Reference deep dive
+## The whole game
 
-### Mad Max
+Goal. Open the civilian evacuation lane by finishing Ghost Signal, Storm Window, and Cinder Vector, in that order.
 
-- strongest lesson: tactile survival fiction with heavy vehicular identity
-- borrow:
-  - resource scavenging pressure
-  - vehicle as extension of the player fantasy
-  - harsh environmental tone and faction ecology
+Win. You win Starfall Protocol when the skiff clears the storm gate at the end of Cinder Vector.
 
-### Watch Dogs
+Loss. You lose the session if your vitals or the skiff hull hit zero before that gate is open.
 
-- strongest lesson: systemic hacking creates player-expression and mission variety
-- borrow:
-  - surveillance and environmental manipulation
-  - chainable gadget play
-  - urban infiltration structure
+A new player reads those three rules on the safehouse board before deploying. The same win and loss lines stay on the mission HUD. Review URLs can pose a debrief for verification. They do not play the campaign and they do not count as winning the game.
 
-### Assassin's Creed
+## The three missions
 
-- strongest lesson: traversal mastery and readable stealth loops make the world playable
-- borrow:
-  - parkour readability
-  - infiltration/exfiltration cadence
-  - layered stealth tools and enemy awareness states
+1. Ghost Signal. Hold E on the skiff ring to insert. Cross the berth, press Q at the overlook, hold E at the archive terminal, hold E to take the navigation seed, shoot the relay drone and the ceiling gun, then hold E at the berth to extract.
+2. Storm Window. The seed is already aboard and the archive is open. The ceiling gun is already live. Shoot both dock relays and that gun, then hold E at the berth to extract. Vitals at zero loses the session.
+3. Cinder Vector. WASD flies the skiff. Three lane guns cover the run to the blue storm gate. Reaching the gate wins the game immediately. Hull zero loses the session. This is the ending.
 
-## Game design
+Future missions on the safehouse board stay locked until the campaign reaches them. After Cinder Vector, Deploy plays the campaign again from Ghost Signal.
 
-### Elevator pitch
+## What the player can do
 
-A third-person cyberpunk action game where a covert recovery unit infiltrates collapsing smart-city megazones, steals or destroys dangerous network relics, and fights rival corporations, militias, and machine cults over the future of urban infrastructure.
+- Move with WASD. Shift sprints on foot. Movement is world-axis: W decreases Z, S increases Z, A decreases X, D increases X.
+- On Cinder Vector, WASD flies the skiff and sprint is not a separate gear.
+- Press Q to scan the overlook.
+- Hold E to insert, breach, secure the seed, and extract.
+- Press F to fire the pulse carbine. Shots that hit guards, the ceiling gun, relays, and lane guns damage them.
+- Esc pauses. Tab or I opens the dossier.
 
-### Pillars
+The dock is a closed room. Crates, the safehouse rack, and the archive door block movement until the door is breached. Enemies shoot when they have a clear line. Standing in the open under a live gun is a way to lose.
 
-- **Movement first**: sprinting, mantle, vault, slide, climb, descent, and zipline routes must feel good
-- **Systemic disruption**: hacking should alter fights, stealth routes, and escape plans
-- **Urban extraction fantasy**: every mission needs a clear insertion, objective, and exfil structure
-- **Hybrid combat**: gunplay, melee finishers, gadgets, and traversal should interplay cleanly
+## Tone references
 
-### Structure
+Mad Max, Watch Dogs, and Assassin's Creed informed the recovery fiction, the hack-then-exfil cadence, and the readable stealth-to-combat turn. They are references for tone only. They do not add missions, parkour verbs, city districts, camera hacking, or a second game that still needs to be built.
 
-- hub-based open zones rather than one giant empty open world
-- districts with repeatable contracts and story missions
-- safehouses for upgrades, intel, and narrative
-- optional vehicle segments for pursuit and escape
+## Safehouse
 
-## Game mechanics
-
-### Player verbs
-
-- move
-- climb
-- scan
-- hack
-- distract
-- breach
-- shoot
-- melee
-- extract
-
-### Combat
-
-- over-the-shoulder shooting
-- gadget combos
-- takedowns from traversal states
-- limited slow-time breach ability for high-pressure encounters
-- enemy communication and flanking logic
-
-### Hacking
-
-- traffic/light grid disruption
-- camera takeover
-- turret hijack
-- door and route manipulation
-- evidence scrub / identity spoof systems for stealth missions
-
-### Progression
-
-- operator skill trees:
-  - infiltration
-  - combat
-  - cyberwarfare
-  - mobility
-- weapon kits and cybernetic upgrades
-- faction trust and world-state consequences
-
-## Sound design
-
-- smart-city ambience, drone layers, mag-rail thunder, neon rain, distant advertising
-- gadgets should sound precise, expensive, and dangerous
-- footsteps and cloth should support stealth readability
-- enemy VO needs clear state changes: searching, alerted, converging, breaking
-
-## Music design
-
-- cyberpunk score with propulsion, not ambient wallpaper
-- stealth music should be tense and minimal
-- combat music should escalate through layered percussion and bass rather than just louder volume
-- mission-complete cues should feel earned and cool, not heroic fantasy
-
-## Tutorials
-
-The tutorial should be a playable black-site training breach, not a classroom.
-
-### Teach in order
-
-1. movement and parkour route choice
-2. scanning and stealth read
-3. distraction and gadget use
-4. breach combat
-5. extraction under pursuit
-
-## Menus
-
-### Front end
-
-- stylish but restrained title screen
-- `Continue`, `Operations`, `Loadout`, `Intel`, `Options`
-
-### In-game screens
-
-- operations board
-- district map
-- loadout bay
-- upgrade tree
-- enemy/faction codex
-
-Avoid generic hologram clutter. This game needs strong contrast, crisp typography, and focused information hierarchy.
-
-## Production plan
-
-### Vertical slice
-
-- one district
-- one safehouse
-- one stealth infiltration mission
-- one combat-heavy recovery mission
-- one vehicle escape sequence
-
-### Engine recommendation
-
-Unreal Engine 5. This project wants a serious third-person action foundation, animation state work, lighting, and shipping-quality presentation.
-
-## Visual and design references
-
-- Mad Max: https://store.steampowered.com/app/234140/Mad_Max/
-- Watch Dogs: https://www.ubisoft.com/en-gb/game/watch-dogs
-- Assassin's Creed parkour overview: https://www.ubisoft.com/en-us/game/assassins-creed/news/4TA6gKaTvtOC1mOjZIxCZd
+The safehouse is the staging board, not a separate chapter. It shows the goal, the win, the loss, the next mission, and the operator's loadout. Career notes are remembered in this browser. Review mode ignores that save and uses a fixed profile so safehouse, insertion, walkthrough, complete, and failed checks stay deterministic.
