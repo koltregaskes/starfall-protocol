@@ -27,25 +27,27 @@ The long-horizon production direction still lives in [DESIGN-BIBLE.md](./DESIGN-
 
 ## Development
 
-- `npm install`
-- `npm run dev`
-- `npm run build`
-- `npm run build:local`
-- `npm run capture:review`
-- `npm run preview`
+- `npm ci` (or `npm install`)
+- `npm run dev`: starts Vite and prints the local URL to open (Vite's default is `http://localhost:5173/`)
+- `npm run build`: type-checks and builds `dist/` for GitHub Pages (base `/starfall-protocol/`)
+- `npm run build:local`: the same build with base `/`, for local review
+- `npm run preview`: serves the last build and prints its URL
+- `npm test`: headless tests of the mission simulation (Node 22.18 or later, no browser)
+- `npm run capture:review`: review captures (see below)
 
-GitHub Pages now deploys the built `dist/` output through the workflow in [.github/workflows/deploy.yml](./.github/workflows/deploy.yml).
+GitHub Pages deploys the built `dist/` output through [.github/workflows/deploy.yml](./.github/workflows/deploy.yml) on every push to `main`. Pull requests run the build and tests only ([.github/workflows/ci.yml](./.github/workflows/ci.yml)).
 
 ## Review Flow
 
-- Safehouse review state: `http://127.0.0.1:4304/?review=1`
-- Insertion review state: `http://127.0.0.1:4304/?review=1&reviewState=insert`
-- Walkthrough review state: `http://127.0.0.1:4304/?review=1&reviewState=walkthrough`
-- Fast-entry mission review state: `http://127.0.0.1:4304/?autostart=1&review=1`
-- Complete debrief review state: `http://127.0.0.1:4304/?review=1&reviewState=complete`
-- Failed debrief review state: `http://127.0.0.1:4304/?review=1&reviewState=failed`
-- Local cached-build launch: `powershell -File ..\prepare-starfall-protocol-local.ps1 -Serve -Port 4304`
-- One-shot evidence refresh: `npm run capture:review -- -CaptureTag 2026-04-09`
+Add these to the address `npm run dev` or `npm run preview` prints:
+
+- Safehouse review state: `?review=1`
+- Insertion review state: `?review=1&reviewState=insert`
+- Walkthrough review state: `?review=1&reviewState=walkthrough`
+- Fast-entry mission review state: `?autostart=1&review=1`
+- Complete debrief review state: `?review=1&reviewState=complete`
+- Failed debrief review state: `?review=1&reviewState=failed`
+- One-shot evidence refresh: `npm run capture:review -- --tag 2026-10-31` builds with base `/`, opens every review state headless at desktop and phone size with no local server or port (Playwright serves `dist/` by request routing), and writes the PNGs and a DOM dump to `review-local/captures/<tag>/` (git-ignored). It needs Playwright with Chromium installed locally or globally, or `STARFALL_PLAYWRIGHT` set to a playwright package folder, and it fails if any page logs an error.
 - Recommended headless WebGL flags: `--enable-webgl --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --run-all-compositor-stages-before-draw`
 
 `review=1` ignores normal browser save data and boots a fixed profile so the safehouse board, autostart mission, and seeded debrief states are deterministic for verification.

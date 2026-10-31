@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:local": "tsc && vite build --base=/",
-    "capture:review": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\capture-review.ps1",
-    "preview": "vite preview"
+    "capture:review": "node scripts/capture-review.mjs",
+    "preview": "vite preview",
+    "test": "node --import ./tests/register.mjs --test \"tests/*.test.ts\""
   },
   "dependencies": {
     "three": "^0.181.1"

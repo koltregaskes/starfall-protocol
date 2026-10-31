@@ -189,8 +189,13 @@ function circleRectCollision(point: Vec2, radius: number, obstacle: RectObstacle
   return dx * dx + dz * dz < radius * radius;
 }
 
+// The sign of the turn a -> b -> c: -1, 0 (collinear) or 1. segmentsIntersect compares
+// these for equality, so they must be signs: the raw cross product made almost every pair
+// "differ", every sight line hit every obstacle, and guards and the turret never saw the
+// player (found by tests/simulation.test.ts, KOL-7008).
 function orientation(a: Vec2, b: Vec2, c: Vec2): number {
-  return (b.z - a.z) * (c.x - b.x) - (b.x - a.x) * (c.z - b.z);
+  const v = (b.z - a.z) * (c.x - b.x) - (b.x - a.x) * (c.z - b.z);
+  return Math.abs(v) < 1e-9 ? 0 : Math.sign(v);
 }
 
 function onSegment(a: Vec2, b: Vec2, c: Vec2): boolean {

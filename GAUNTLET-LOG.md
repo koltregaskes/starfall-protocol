@@ -1,6 +1,6 @@
 # Starfall Protocol — Gauntlet Log
 
-Protocol: `W:\repos\_My Games\GAUNTLET.md`.
+Protocol: `W:\repos\internal\_context\GAUNTLET.md` (it moved from `W:\repos\_My Games\GAUNTLET.md`; path checked 31 Oct 2026).
 Bar (camera-matched): **Sable · Neon White · Ghostrunner · Superhot** — stylised
 3rd-person, not photoreal. Kol's standard: AAA quality at indie scope.
 

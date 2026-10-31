@@ -1,0 +1,29 @@
+## Build and tests for pull requests and for pushes to any branch except main. It deploys
+## nothing: GitHub Pages is published only by deploy.yml, on pushes to main.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches-ignore: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
