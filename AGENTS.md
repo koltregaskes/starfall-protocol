@@ -1,6 +1,6 @@
 # Starfall Protocol Repo Instructions
 
-Read `W:\Repos\_My Games\AGENTS.md` first.
+Read the shared games rules first: `W:\repos\internal\_context\AGENTS-games.md` (it moved from `W:\Repos\_My Games\AGENTS.md`; path checked 31 Oct 2026).
 
 ## Local Rules
 
