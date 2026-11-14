@@ -49,3 +49,13 @@ GitHub Pages now deploys the built `dist/` output through the workflow in [.gith
 - Recommended headless WebGL flags: `--enable-webgl --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --run-all-compositor-stages-before-draw`
 
 `review=1` ignores normal browser save data and boots a fixed profile so the safehouse board, autostart mission, and seeded debrief states are deterministic for verification.
+
+## Playable session regression
+
+With Node 24 or later, run `node tests/playable-session.mjs`. No packages or browser are required.
+The check starts the default mission with no unlocked skills, walks around the real obstacles,
+stabilizes insertion, scans, breaches, collects the core, defeats the lockdown enemies, and extracts.
+It drives normal keyboard-shaped inputs without changing player position, health, facing, enemies,
+or mission flags. A bounded route planner chooses the movement path; this checks reachability and
+the complete objective chain, rather than human difficulty or browser presentation.
+The Playable session workflow runs it on every push and pull request.
