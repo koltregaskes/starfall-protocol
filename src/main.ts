@@ -1,6 +1,7 @@
 import "./style.css";
 
 import { AudioEngine } from "./game/audio/AudioEngine";
+import { CAMPAIGN_ORDER, campaignMissionName } from "./game/content/campaign";
 import { createMissionConfig } from "./game/content/progression";
 import {
   createReviewProfile,
@@ -16,7 +17,7 @@ import { getRunAssessment } from "./game/progression/runAssessment";
 import { InputController } from "./game/input/InputController";
 import { GameSimulation } from "./game/simulation/GameSimulation";
 import { GameRuntime } from "./render/app/GameRuntime";
-import { Hud } from "./ui/Hud";
+import { Hud, type RunResolution } from "./ui/Hud";
 
 const root = document.querySelector<HTMLDivElement>("#app");
 const searchParams = new URLSearchParams(window.location.search);
@@ -62,6 +63,12 @@ function persistProfile(nextProfile: typeof profile) {
 
 function syncSafehouseState(options: { resetSimulation?: boolean } = {}) {
   const { resetSimulation = true } = options;
+  if (!reviewMode && !profile.campaignCleared) {
+    profile = {
+      ...profile,
+      selectedOperationId: CAMPAIGN_ORDER[profile.campaignStep] ?? "ghost-signal",
+    };
+  }
   missionConfig = createMissionConfig(
     profile.selectedOperationId,
     profile.selectedLoadoutId,
@@ -84,20 +91,33 @@ function syncSafehouseState(options: { resetSimulation?: boolean } = {}) {
 
 const hud = new Hud(root, {
   onDeploy: async () => {
+    if (!reviewMode && profile.campaignCleared) {
+      profile = { ...profile, campaignCleared: false, campaignStep: 0, selectedOperationId: "ghost-signal" };
+      persistProfile(profile);
+    }
     await audio.unlock();
+    syncSafehouseState();
     simulation.configure(missionConfig);
     simulation.startMission();
     hud.hideBriefing();
+    hud.setResolution(null);
     lastRecordedPhase = null;
   },
   onResume: () => {
     simulation.togglePause();
   },
   onRestart: async () => {
+    if (!reviewMode && resolution?.kind === "game-win") {
+      profile = { ...profile, campaignCleared: false, campaignStep: 0, selectedOperationId: "ghost-signal" };
+      persistProfile(profile);
+    }
     await audio.unlock();
+    syncSafehouseState();
     simulation.configure(missionConfig);
     simulation.startMission();
     hud.hideBriefing();
+    hud.setResolution(null);
+    resolution = null;
     lastRecordedPhase = null;
   },
   onReturnToSafehouse: () => {
@@ -112,6 +132,12 @@ const hud = new Hud(root, {
     simulation.setIntelOpen(!simulation.getSnapshot().ui.intelOpen);
   },
   onSelectOperation: (operationId) => {
+    if (!reviewMode) {
+      const index = CAMPAIGN_ORDER.indexOf(operationId);
+      if (profile.campaignCleared || index !== profile.campaignStep) {
+        return;
+      }
+    }
     profile = updateCareerSelection(profile, { selectedOperationId: operationId });
     persistProfile(profile);
     syncSafehouseState();
@@ -130,6 +156,7 @@ const hud = new Hud(root, {
 
 const runtime = new GameRuntime(hud.sceneHost);
 let lastRecordedPhase: "complete" | "failed" | null = null;
+let resolution: RunResolution | null = null;
 let hiddenPauseTriggered = false;
 
 syncSafehouseState();
@@ -166,6 +193,22 @@ function frame(now: number) {
   }
 
   if ((state.phase === "complete" || state.phase === "failed") && lastRecordedPhase !== state.phase) {
+    const finishedIndex = profile.campaignStep;
+    const finishedName = campaignMissionName(finishedIndex);
+    const gameWon = !reviewMode && state.phase === "complete" && !profile.campaignCleared && finishedIndex >= CAMPAIGN_ORDER.length - 1;
+    const missionWon = !reviewMode && state.phase === "complete" && !gameWon && !profile.campaignCleared;
+    resolution =
+      state.phase === "failed"
+        ? { kind: "loss", missionName: missionConfig.operation.name, nextName: null }
+        : gameWon
+          ? { kind: "game-win", missionName: finishedName, nextName: null }
+          : missionWon
+            ? {
+                kind: "mission-win",
+                missionName: finishedName,
+                nextName: campaignMissionName(finishedIndex + 1),
+              }
+            : null;
     profile = recordCareerRun(profile, missionConfig, {
       outcome: state.phase,
       assessment: getRunAssessment(state.stats, state.phase === "complete"),
@@ -174,8 +217,19 @@ function frame(now: number) {
       damageTaken: state.stats.damageTaken,
       enemiesNeutralized: state.stats.enemiesNeutralized,
     });
+    if (missionWon) {
+      profile = {
+        ...profile,
+        campaignStep: finishedIndex + 1,
+        selectedOperationId: CAMPAIGN_ORDER[finishedIndex + 1] ?? "ghost-signal",
+      };
+    }
+    if (gameWon) {
+      profile = { ...profile, campaignCleared: true };
+    }
     persistProfile(profile);
     syncSafehouseState({ resetSimulation: false });
+    hud.setResolution(resolution);
     lastRecordedPhase = state.phase;
   }
 

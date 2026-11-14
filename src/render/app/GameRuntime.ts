@@ -11,6 +11,7 @@ import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
 import { CinematicGradeShader, makePanelNormal, makePanelRoughness } from "./artDirection";
 
+import { LANE_GUNS, RECOVERY_RELAYS } from "../../game/content/campaign";
 import { DOOR_OBSTACLE, MISSION_POINTS, STATIC_OBSTACLES, WORLD_BOUNDS } from "../../game/content/mission";
 import type { GuardState, SimulationState } from "../../game/simulation/types";
 
@@ -165,6 +166,12 @@ export class GameRuntime {
 
   private readonly turretHead: THREE.Group;
 
+  private escapeSkiff!: THREE.Group;
+
+  private readonly relayMeshes = new Map<string, THREE.Mesh>();
+
+  private readonly laneGunVisuals: { root: THREE.Group; head: THREE.Group }[] = [];
+
   private readonly coreMesh: THREE.Mesh;
 
   private readonly scanPulse: THREE.Mesh;
@@ -267,6 +274,27 @@ export class GameRuntime {
     this.turretRoot = turret.root;
     this.turretHead = turret.head;
     this.scene.add(this.turretRoot);
+
+    this.escapeSkiff = this.buildEscapeSkiff();
+    this.escapeSkiff.visible = false;
+    this.scene.add(this.escapeSkiff);
+
+    for (const relay of RECOVERY_RELAYS) {
+      const mesh = createBox([0.72, 1.6, 0.72], makeMetal("#ffb15a", "#ff7a3c", 0.16, 0.2));
+      mesh.position.set(relay.position.x, 0.8, relay.position.z);
+      mesh.castShadow = true;
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.relayMeshes.set(relay.id, mesh);
+    }
+
+    for (const point of LANE_GUNS) {
+      const gun = this.buildTurret();
+      gun.root.position.set(point.x, 1.5, point.z);
+      gun.root.visible = false;
+      this.scene.add(gun.root);
+      this.laneGunVisuals.push(gun);
+    }
 
     this.coreMesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.42, 1),
@@ -373,6 +401,7 @@ export class GameRuntime {
     for (const mixer of this.mixers) mixer.update(dt);
     this.updatePlayerLocomotion(state, dt);
     this.updatePlayer(state, dt);
+    this.updateCampaignVisuals(state);
     this.updateGuards(state);
     this.updateTurret(state, dt);
     this.updateDoor(state, dt);
@@ -728,6 +757,54 @@ export class GameRuntime {
     }
   }
 
+  private buildEscapeSkiff(): THREE.Group {
+    const skiff = new THREE.Group();
+    const hull = createBox([1.7, 0.42, 3.4], makeMetal("#d7f6ff", "#67e7ff", 0.12, 0.2));
+    hull.position.y = 0.45;
+    skiff.add(hull);
+    const wing = createBox([3.1, 0.08, 0.7], makeMetal("#8af3ff", "#8af3ff", 0.08, 0.16));
+    wing.position.set(0, 0.5, -0.2);
+    skiff.add(wing);
+    const canopy = createBox([0.7, 0.28, 1.1], makeMetal("#16324a", "#9ad7ff", 0.18, 0.35));
+    canopy.position.set(0, 0.78, 0.2);
+    skiff.add(canopy);
+    return skiff;
+  }
+
+  private updateCampaignVisuals(state: SimulationState) {
+    const escape = state.missionKind === "escape";
+    this.playerMesh.visible = !escape;
+    this.escapeSkiff.visible = escape;
+    if (escape) {
+      this.escapeSkiff.position.set(state.player.position.x, 0.15, state.player.position.z);
+      this.escapeSkiff.rotation.y = state.player.facing;
+    }
+
+    for (const mesh of this.relayMeshes.values()) {
+      mesh.visible = false;
+    }
+    if (state.missionKind === "recovery") {
+      for (const relay of state.relays) {
+        const mesh = this.relayMeshes.get(relay.id);
+        if (!mesh) {
+          continue;
+        }
+        mesh.visible = !relay.destroyed;
+        mesh.position.y = 0.8 + Math.sin(state.elapsed * 3 + relay.position.x) * 0.08;
+      }
+    }
+
+    this.laneGunVisuals.forEach((visual, index) => {
+      const gun = state.laneGuns[index];
+      visual.root.visible = Boolean(gun && gun.active && !gun.destroyed);
+      if (!gun) {
+        return;
+      }
+      visual.root.position.set(gun.position.x, 1.5, gun.position.z);
+      visual.head.rotation.y = -gun.facing;
+    });
+  }
+
   private buildDoor(): THREE.Group {
     const group = new THREE.Group();
     const frame = createBox([DOOR_OBSTACLE.halfWidth * 2 + 0.6, DOOR_OBSTACLE.height + 0.6, 0.75], makeMetal("#0f1e2d", "#152a3f", 0.28, 0.88));
@@ -990,8 +1067,12 @@ export class GameRuntime {
   private updateGuards(state: SimulationState) {
     for (const guard of state.guards) {
       const visual = this.ensureGuardVisual(guard);
-      visual.root.visible = !guard.down;
-      if (guard.down) continue;
+      const shown = guard.active && !guard.down;
+      visual.root.visible = shown;
+      if (!shown) {
+        visual.vision.visible = false;
+        continue;
+      }
 
       visual.root.position.set(guard.position.x, guard.type === "drone" ? 0.85 + Math.sin(state.elapsed * 4.4 + guard.position.x) * 0.12 : 0, guard.position.z);
       visual.root.rotation.y = guard.facing;
@@ -1086,6 +1167,25 @@ export class GameRuntime {
 
     this.relayMarker.visible = false;
 
+    if (state.missionKind === "escape") {
+      this.objectiveMarkers.extraction.visible = state.phase === "mission" || state.phase === "paused";
+      this.objectiveMarkers.extraction.position.set(state.gate.x, 0, state.gate.z);
+      return;
+    }
+
+    this.objectiveMarkers.extraction.position.set(MISSION_POINTS.extraction.x, 0, MISSION_POINTS.extraction.z);
+
+    if (state.missionKind === "recovery" && state.objective === "combat") {
+      const relay = state.relays.find((entry) => !entry.destroyed);
+      if (relay) {
+        this.relayMarker.visible = true;
+        this.relayMarker.position.set(relay.position.x, 0, relay.position.z);
+        this.relayMarker.scale.setScalar(1 + Math.sin(state.elapsed * 4.4) * 0.08);
+      }
+      this.objectiveMarkers.turret.visible = !relay && !state.turret.destroyed;
+      return;
+    }
+
     switch (state.objective) {
       case "insert":
         this.objectiveMarkers.deploy.visible = true;
@@ -1111,6 +1211,10 @@ export class GameRuntime {
       }
       case "extract":
         this.objectiveMarkers.extraction.visible = true;
+        break;
+      case "lane":
+        this.objectiveMarkers.extraction.visible = true;
+        this.objectiveMarkers.extraction.position.set(state.gate.x, 0, state.gate.z);
         break;
     }
   }

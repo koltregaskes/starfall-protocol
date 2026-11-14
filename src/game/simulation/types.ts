@@ -1,6 +1,8 @@
 export type MissionPhase = "briefing" | "mission" | "paused" | "failed" | "complete" | "insertion";
 
-export type ObjectiveId = "insert" | "survey" | "hack" | "collect" | "combat" | "extract";
+export type MissionKind = "infiltration" | "recovery" | "escape";
+
+export type ObjectiveId = "insert" | "survey" | "hack" | "collect" | "combat" | "extract" | "lane";
 
 export type Vec2 = {
   x: number;
@@ -66,6 +68,13 @@ export type TurretState = {
   facing: number;
 };
 
+export type RelayState = {
+  id: string;
+  position: Vec2;
+  health: number;
+  destroyed: boolean;
+};
+
 export type ProjectileState = {
   id: number;
   owner: "player" | "enemy";
@@ -108,9 +117,13 @@ export type SimulationState = {
   phase: MissionPhase;
   elapsed: number;
   objective: ObjectiveId;
+  missionKind: MissionKind;
   player: PlayerState;
   guards: GuardState[];
   turret: TurretState;
+  relays: RelayState[];
+  laneGuns: TurretState[];
+  gate: Vec2;
   projectiles: ProjectileState[];
   ui: UiState;
   alert: boolean;
