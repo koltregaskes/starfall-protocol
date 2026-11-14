@@ -25,6 +25,11 @@ The long-horizon production direction still lives in [DESIGN-BIBLE.md](./DESIGN-
 - `Esc`: pause
 - `Tab` or `I`: intel drawer
 
+Switching windows or hiding the tab releases held controls. Press the keys again
+when you return. Movement aliases (WASD and arrows) and both Shift keys can be held together.
+
+Run the input regression check with Node 24 or later: `node --test tests/input.test.mjs`.
+
 ## Development
 
 - `npm install`

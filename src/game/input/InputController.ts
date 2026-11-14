@@ -32,7 +32,7 @@ const KEY_MAP: Record<string, ActionKey> = {
 };
 
 export class InputController {
-  private readonly down = new Set<ActionKey>();
+  private readonly down = new Set<string>();
 
   private readonly pressed = new Set<ActionKey>();
 
@@ -46,11 +46,11 @@ export class InputController {
       event.preventDefault();
     }
 
-    if (!this.down.has(action)) {
+    if (!this.isDown(action)) {
       this.pressed.add(action);
     }
 
-    this.down.add(action);
+    this.down.add(event.code);
   };
 
   private readonly keyupHandler = (event: KeyboardEvent) => {
@@ -59,28 +59,46 @@ export class InputController {
       return;
     }
 
-    this.down.delete(action);
+    this.down.delete(event.code);
   };
+
+  private readonly reset = () => {
+    this.down.clear();
+    this.pressed.clear();
+  };
+
+  private readonly visibilityHandler = () => {
+    if (document.hidden) this.reset();
+  };
+
+  private isDown(action: ActionKey): boolean {
+    return Object.keys(KEY_MAP).some((code) => KEY_MAP[code] === action && this.down.has(code));
+  }
 
   constructor() {
     window.addEventListener("keydown", this.keydownHandler);
     window.addEventListener("keyup", this.keyupHandler);
+    window.addEventListener("blur", this.reset);
+    document.addEventListener("visibilitychange", this.visibilityHandler);
   }
 
   destroy() {
     window.removeEventListener("keydown", this.keydownHandler);
     window.removeEventListener("keyup", this.keyupHandler);
+    window.removeEventListener("blur", this.reset);
+    document.removeEventListener("visibilitychange", this.visibilityHandler);
+    this.reset();
   }
 
   sample(): InputSnapshot {
-    const moveX = Number(this.down.has("moveRight")) - Number(this.down.has("moveLeft"));
-    const moveY = Number(this.down.has("moveForward")) - Number(this.down.has("moveBackward"));
+    const moveX = Number(this.isDown("moveRight")) - Number(this.isDown("moveLeft"));
+    const moveY = Number(this.isDown("moveForward")) - Number(this.isDown("moveBackward"));
 
     const snapshot: InputSnapshot = {
       moveX,
       moveY,
-      sprint: this.down.has("sprint"),
-      interactHeld: this.down.has("interact"),
+      sprint: this.isDown("sprint"),
+      interactHeld: this.isDown("interact"),
       interactPressed: this.pressed.has("interact"),
       scanPressed: this.pressed.has("scan"),
       firePressed: this.pressed.has("fire"),
